@@ -1,8 +1,8 @@
 import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
-import { prisma } from '../config/prisma.js';
-import { hashPassword } from '../utils/password.js';
-import { passwordSchema } from '../validators/auth.validators.js';
+import { prisma } from '../src/config/prisma.js';
+import { hashPassword } from '../src/utils/password.js';
+import { passwordSchema } from '../src/validators/auth.validators.js';
 
 async function main() {
   console.log('--- THAT JALTA DIYA: Secure Admin Account Setup ---');
