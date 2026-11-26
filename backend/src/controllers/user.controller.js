@@ -52,39 +52,6 @@ export async function updateProfile(req, res, next) {
   }
 }
 
-export async function changePhoneWithOtp(req, res, next) {
-  try {
-    const { phone, otpCode } = req.body;
-    // Verify OTP first
-    const verification = await otpService.verifyOtp({
-      identifier: phone,
-      purpose: 'PHONE_VERIFY',
-      code: otpCode,
-    });
-
-    if (!verification.valid) {
-      return apiError(res, 'Invalid or expired phone verification code.', 400, 'INVALID_OTP');
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: req.user.id },
-      data: {
-        phone: phone.trim(),
-        isPhoneVerified: true,
-      },
-      select: {
-        id: true,
-        phone: true,
-        isPhoneVerified: true,
-      }
-    });
-
-    return apiSuccess(res, updated, 'Phone number updated and verified.');
-  } catch (error) {
-    next(error);
-  }
-}
-
 export async function changeEmailWithOtp(req, res, next) {
   try {
     const { newEmail, otpCode } = req.body;

@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const createProductAdminSchema = z.object({
   name: z.string().min(2).max(200),
   slug: z.string().max(200).optional(),
-  description: z.string().min(5),
+  description: z.string().min(5).max(50000, 'Product description cannot exceed 50,000 characters'),
   shortDescription: z.string().max(300).optional().nullable(),
   price: z.number().int().positive('Price must be positive in paise'),
   compareAtPrice: z.number().int().positive().optional().nullable(),

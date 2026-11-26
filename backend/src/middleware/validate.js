@@ -32,9 +32,10 @@ export function validate(schemas = {}) {
           message: e.message,
           code: e.code,
         }));
+        const primaryMessage = fieldErrors[0]?.message || 'Validation failed. Please verify your inputs.';
         return apiError(
           res,
-          'Validation failed. Please verify your inputs.',
+          primaryMessage,
           400,
           'VALIDATION_ERROR',
           fieldErrors

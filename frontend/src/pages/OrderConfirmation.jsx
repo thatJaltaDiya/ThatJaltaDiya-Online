@@ -14,7 +14,7 @@ export function OrderConfirmation() {
   return (
     <>
       <Helmet>
-        <title>Order Confirmed #{orderNumber} | That Jalta Diya</title>
+        <title>{`Order Confirmed #${orderNumber} | That Jalta Diya`}</title>
       </Helmet>
 
       <div className="max-w-3xl mx-auto px-4 py-16 sm:py-20 text-center">

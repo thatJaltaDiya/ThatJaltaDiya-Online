@@ -274,7 +274,21 @@ export async function deleteCategory(req, res, next) {
 export async function listOrders(req, res, next) {
   try {
     const result = await orderService.listAdminOrders(req.query);
-    return apiSuccess(res, result.orders, 'Orders retrieved', 200, result.pagination);
+    return apiSuccess(res, result.orders, 'Orders retrieved', 200, {
+      ...result.pagination,
+      refundRequiredCount: result.refundRequiredCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function markOrderRefunded(req, res, next) {
+  try {
+    const orderId = req.params.id;
+    const reason = req.body?.reason || 'Admin processed refund';
+    const order = await orderService.markOrderRefunded(orderId, req.user?.id, reason);
+    return apiSuccess(res, order, 'Order successfully marked as refunded.');
   } catch (error) {
     next(error);
   }
@@ -300,7 +314,7 @@ export async function getOrder(req, res, next) {
 
 export async function updateOrderStatus(req, res, next) {
   try {
-    const order = await orderService.updateOrderStatus(req.params.id, req.body);
+    const order = await orderService.updateOrderStatus(req.params.id, req.body, req.user?.id);
     await logAdminAction({
       adminId: req.user.id,
       action: 'ORDER_STATUS_UPDATE',
@@ -577,6 +591,102 @@ export async function listAuditLogs(req, res, next) {
       limit,
       totalPages: Math.ceil(total / limit) || 1,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin 2FA Management
+ */
+export async function setup2FA(req, res, next) {
+  try {
+    const { generate2FASetup } = await import('../../services/twoFactor.service.js');
+    const setup = await generate2FASetup(req.user.email);
+    return apiSuccess(res, {
+      secret: setup.secret,
+      qrCodeDataUrl: setup.qrCodeDataUrl,
+      plainBackupCodes: setup.plainBackupCodes,
+    }, '2FA setup generated. Please scan QR code and confirm with a 6-digit code.');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function enable2FA(req, res, next) {
+  try {
+    const { secret, token, plainBackupCodes } = req.body;
+    const { verify2FACode } = await import('../../services/twoFactor.service.js');
+    const { hashToken } = await import('../../utils/tokens.js');
+
+    const isValid = verify2FACode(secret, token);
+    if (!isValid) {
+      return apiError(res, 'Invalid 2FA code. Please ensure your authenticator app is synced.', 400, 'INVALID_2FA_TOKEN');
+    }
+
+    const hashedCodes = Array.isArray(plainBackupCodes)
+      ? plainBackupCodes.map(c => hashToken(String(c).trim().toUpperCase()))
+      : [];
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorSecret: secret,
+        twoFactorBackupCodes: hashedCodes,
+      },
+    });
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'ADMIN_2FA_ENABLED',
+      targetType: 'User',
+      targetId: req.user.id,
+      req,
+    });
+
+    const { signAccessToken } = await import('../../utils/tokens.js');
+    const accessToken = signAccessToken({
+      sub: req.user.id,
+      email: req.user.email,
+      role: 'ADMIN',
+    });
+
+    return apiSuccess(res, { twoFactorEnabled: true, token: accessToken }, 'Two-factor authentication successfully enabled.');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function disable2FA(req, res, next) {
+  try {
+    const { token } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const { verify2FACode } = await import('../../services/twoFactor.service.js');
+
+    const isValid = verify2FACode(user.twoFactorSecret, token);
+    if (!isValid) {
+      return apiError(res, 'Invalid 2FA code. Verification required to disable 2FA.', 400, 'INVALID_2FA_TOKEN');
+    }
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorBackupCodes: [],
+      },
+    });
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'ADMIN_2FA_DISABLED',
+      targetType: 'User',
+      targetId: req.user.id,
+      req,
+    });
+
+    return apiSuccess(res, { twoFactorEnabled: false }, 'Two-factor authentication disabled.');
   } catch (error) {
     next(error);
   }

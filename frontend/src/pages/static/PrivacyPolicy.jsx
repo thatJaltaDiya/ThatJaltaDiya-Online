@@ -17,17 +17,22 @@ export function PrivacyPolicy() {
         <Card className="p-8 bg-white space-y-4 text-xs sm:text-sm text-primary/85 leading-relaxed font-medium">
           <h3 className="font-editorial text-lg font-bold text-primary">1. Information We Collect</h3>
           <p>
-            We collect the minimum information required to deliver your orders: your name, delivery address, email address, phone number, and optional recipient gift notes. We never sell or rent your personal information to third parties.
+            We collect basic information you provide when creating an account or placing an order, including your name, email address, phone number, and delivery address.
           </p>
 
-          <h3 className="font-editorial text-lg font-bold text-primary">2. Security & Payment Data</h3>
+          <h3 className="font-editorial text-lg font-bold text-primary">2. How We Use Your Information</h3>
           <p>
-            Your account passwords are encrypted using state-of-the-art Argon2id hashing algorithms. Payment details are handled securely by compliant payment gateways—our servers never store your credit/debit card numbers or CVV.
+            Your details are used solely to process and deliver your orders, send order updates, and assist you with customer support. We do not sell or rent your personal information to third parties.
           </p>
 
-          <h3 className="font-editorial text-lg font-bold text-primary">3. Cookies & Session Storage</h3>
+          <h3 className="font-editorial text-lg font-bold text-primary">3. Payments &amp; Security</h3>
           <p>
-            We use secure httpOnly cookies solely for keeping you safely authenticated. You can request deletion of your account and data at any time from your account settings.
+            All online payments are processed securely through trusted third-party payment providers. We do not store your credit card, debit card, or banking details.
+          </p>
+
+          <h3 className="font-editorial text-lg font-bold text-primary">4. Contact &amp; Data Requests</h3>
+          <p>
+            If you have any questions about your privacy or wish to update or delete your account information, please reach out to us at hello@thatjaltadiya.com.
           </p>
         </Card>
       </div>

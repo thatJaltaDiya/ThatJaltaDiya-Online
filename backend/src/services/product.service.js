@@ -18,7 +18,9 @@ export async function listProducts({
   isNew,
   isDemo,
 }) {
-  const skip = (page - 1) * limit;
+  const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+  const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 12));
+  const skip = (parsedPage - 1) * parsedLimit;
   const where = {
     deletedAt: null,
   };
@@ -64,7 +66,7 @@ export async function listProducts({
       where,
       orderBy,
       skip,
-      take: limit,
+      take: parsedLimit,
       include: {
         category: {
           select: { id: true, name: true, slug: true },
@@ -84,9 +86,9 @@ export async function listProducts({
     products,
     pagination: {
       total: totalCount,
-      page,
-      limit,
-      totalPages: Math.ceil(totalCount / limit) || 1,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(totalCount / parsedLimit) || 1,
     },
   };
 }
@@ -169,6 +171,7 @@ export async function createProduct(data, images = []) {
         images: {
           create: images.map((img, idx) => ({
             url: img.url,
+            storageKey: img.storageKey || null,
             altText: img.altText || data.name,
             sortOrder: idx,
             isPrimary: idx === 0,

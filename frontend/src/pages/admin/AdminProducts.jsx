@@ -235,14 +235,14 @@ export function AdminProducts() {
             placeholder="Search by product name, SKU..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white rounded-full border-2 border-border text-xs font-bold focus:border-accent outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-white rounded-full border border-border/30 text-xs font-bold focus:border-primary/40 focus:ring-1 focus:ring-primary/10 outline-none shadow-sm"
           />
         </div>
 
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-2 bg-white rounded-full border-2 border-border text-xs font-bold focus:border-accent outline-none cursor-pointer"
+          className="px-4 py-2 bg-white rounded-full border border-border/30 text-xs font-bold focus:border-primary/40 focus:ring-1 focus:ring-primary/10 outline-none cursor-pointer shadow-sm"
         >
           <option value="">All Categories</option>
           {categories.map(c => (
@@ -274,8 +274,7 @@ export function AdminProducts() {
                       <img src={primaryImg} alt="" className="w-12 h-12 rounded-lg border border-border object-cover bg-surface flex-shrink-0" />
                       <div>
                         <div className="font-editorial text-sm font-bold text-primary">{p.name}</div>
-                        <span className="text-[10px] text-primary/50 font-mono">SKU: {p.sku}</span>
-                        {p.isDemo && <Badge variant="butter" className="text-[8px] ml-1.5 py-0 px-1.5">DEMO</Badge>}
+                        {p.isDemo && <Badge variant="butter" className="text-[8px] py-0 px-1.5">DEMO</Badge>}
                       </div>
                     </td>
 
@@ -349,28 +348,20 @@ export function AdminProducts() {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-primary mb-1.5">
-                Category *
-              </label>
-              <select
-                required
-                value={form.categoryId}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="w-full px-3 py-2 min-h-[44px] bg-white rounded-xl border-2 border-border text-xs font-bold outline-none"
-              >
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <Input
-              label="SKU Code *"
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-primary mb-1.5">
+              Category *
+            </label>
+            <select
               required
-              value={form.sku}
-              onChange={(e) => setForm({ ...form, sku: e.target.value })}
-            />
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+              className="w-full px-3 py-2 min-h-[44px] bg-white rounded-xl border-2 border-border text-xs font-bold outline-none"
+            >
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -464,7 +455,7 @@ export function AdminProducts() {
               rows={4}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full p-3 rounded-xl border-2 border-border text-xs font-medium outline-none focus:border-accent"
+              className="w-full p-3 rounded-xl border border-border/30 text-xs font-medium outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/10 shadow-sm"
               placeholder="Handcrafted details, burn instructions, materials..."
             />
           </div>

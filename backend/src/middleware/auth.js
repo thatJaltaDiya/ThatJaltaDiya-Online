@@ -43,6 +43,7 @@ export async function requireAuth(req, res, next) {
     }
 
     req.user = user;
+    req.user.scope = payload.scope || null;
     next();
   } catch (error) {
     next(error);

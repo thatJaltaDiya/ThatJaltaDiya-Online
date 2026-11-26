@@ -2,7 +2,7 @@ import React from 'react';
 import { Sparkles } from 'lucide-react';
 
 export function MarqueeStrip({
-  text = "HANDCRAFTED SOY CANDLE BOUQUETS ✨ FREE DELIVERY OVER ₹1499 ✨ CUSTOM GIFT HAMPERS ✨ CLEAN BURNING NATURAL WAX",
+  text = "HANDCRAFTED CANDLES, BOUQUETS & GIFTING ITEMS ✨ CUSTOM GIFT HAMPERS ✨ CLEAN BURNING NATURAL WAX",
   className = "bg-accent text-white py-2.5",
 }) {
   const items = Array(4).fill(text);

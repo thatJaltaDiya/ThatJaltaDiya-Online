@@ -1,22 +1,50 @@
+import crypto from 'crypto';
 import { env } from '../config/env.js';
 import { apiSuccess, apiError } from '../utils/response.js';
+import { getClientIp } from '../utils/ip.js';
 import * as authService from '../services/auth.service.js';
 import * as otpService from '../services/otp.service.js';
 
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'strict',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: '/api/v1/auth',
-};
+export function getRefreshCookieOptions() {
+  const options = {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.COOKIE_SAMESITE || (env.NODE_ENV === 'production' ? 'strict' : 'lax'),
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/v1/auth',
+  };
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+  return options;
+}
 
-const CLEAR_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'strict',
-  path: '/api/v1/auth',
-};
+export function getCsrfCookieOptions() {
+  const options = {
+    httpOnly: false, // Must be readable by client JavaScript to send in double-submit X-CSRF-Token header
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.COOKIE_SAMESITE || (env.NODE_ENV === 'production' ? 'strict' : 'lax'),
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  };
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+  return options;
+}
+
+export function getClearCookieOptions() {
+  const options = {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.COOKIE_SAMESITE || (env.NODE_ENV === 'production' ? 'strict' : 'lax'),
+    path: '/api/v1/auth',
+  };
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+  return options;
+}
 
 export async function register(req, res, next) {
   try {
@@ -34,7 +62,7 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    const ipAddress = req.headers['cf-connecting-ip'] || req.ip;
+    const ipAddress = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     const result = await authService.authenticateUser({
@@ -43,13 +71,27 @@ export async function login(req, res, next) {
       userAgent,
     });
 
-    res.cookie('refreshToken', result.refreshTokenString, REFRESH_COOKIE_OPTIONS);
+    if (result.twoFactorRequired) {
+      return apiSuccess(
+        res,
+        {
+          twoFactorRequired: true,
+          user: result.user,
+        },
+        'Two-factor authentication code required.'
+      );
+    }
+
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie('refreshToken', result.refreshTokenString, getRefreshCookieOptions());
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions());
 
     return apiSuccess(
       res,
       {
         user: result.user,
         accessToken: result.accessToken,
+        csrfToken,
       },
       'Welcome back!'
     );
@@ -60,36 +102,41 @@ export async function login(req, res, next) {
 
 export async function refresh(req, res, next) {
   try {
-    const tokenString = req.cookies?.refreshToken;
+    const tokenString = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
     if (!tokenString) {
       return apiError(res, 'Session expired. Please sign in.', 401, 'TOKEN_MISSING');
     }
 
     const result = await authService.rotateRefreshToken(tokenString);
 
-    res.cookie('refreshToken', result.refreshTokenString, REFRESH_COOKIE_OPTIONS);
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie('refreshToken', result.refreshTokenString, getRefreshCookieOptions());
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions());
 
     return apiSuccess(
       res,
       {
         user: result.user,
         accessToken: result.accessToken,
+        csrfToken,
       },
       'Token refreshed successfully'
     );
   } catch (error) {
-    res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+    res.clearCookie('refreshToken', getClearCookieOptions());
+    res.clearCookie('csrfToken', { path: '/' });
     next(error);
   }
 }
 
 export async function logout(req, res, next) {
   try {
-    const tokenString = req.cookies?.refreshToken;
+    const tokenString = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
     if (tokenString) {
       await authService.logoutUser(tokenString);
     }
-    res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+    res.clearCookie('refreshToken', getClearCookieOptions());
+    res.clearCookie('csrfToken', { path: '/' });
     return apiSuccess(res, null, 'Logged out successfully');
   } catch (error) {
     next(error);

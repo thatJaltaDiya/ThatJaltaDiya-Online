@@ -138,8 +138,8 @@ export function AdminSettings() {
           rows={2}
           value={settings.announcementText || ''}
           onChange={(e) => setSettings({ ...settings, announcementText: e.target.value })}
-          className="w-full p-3 rounded-xl border-2 border-border text-xs font-bold outline-none focus:border-accent"
-          placeholder="HANDCRAFTED SOY CANDLE BOUQUETS ✨ FREE DELIVERY OVER ₹1499"
+          className="w-full p-3 rounded-xl border border-border/30 text-xs font-bold outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/10 shadow-sm"
+          placeholder="HANDCRAFTED CANDLES, BOUQUETS & GIFTING ITEMS ✨ CUSTOM GIFT HAMPERS"
         />
         <Button
           size="sm"

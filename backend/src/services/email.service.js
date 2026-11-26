@@ -4,7 +4,7 @@ import { logger } from '../config/logger.js';
 
 let transporter = null;
 
-if (env.SMTP_HOST && env.SMTP_USER) {
+if (env.NODE_ENV !== 'test' && env.SMTP_HOST && env.SMTP_USER) {
   transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
@@ -44,12 +44,23 @@ export async function sendEmail({ to, subject, html, text }) {
   }
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export async function sendVerificationEmail(to, token, name) {
-  const verifyUrl = `${env.CLIENT_ORIGINS[0]}/verify-email?token=${token}`;
+  const safeName = escapeHtml(name || 'there');
+  const verifyUrl = `${env.CLIENT_ORIGINS[0]}/verify-email?token=${encodeURIComponent(token)}`;
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #2D0C1E; border-radius: 12px; background-color: #FFFBF5; color: #2D0C1E;">
       <h2 style="font-family: serif; color: #FF3366; margin-top: 0;">Welcome to That Jalta Diya! 🕯️✨</h2>
-      <p>Hello ${name || 'there'},</p>
+      <p>Hello ${safeName},</p>
       <p>Thank you for joining our boutique! Please verify your email address to activate your account and start ordering handcrafted candle bouquets.</p>
       <div style="margin: 32px 0;">
         <a href="${verifyUrl}" style="background-color: #FF3366; color: #FFFFFF; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: bold; border: 2px solid #2D0C1E; display: inline-block;">Verify Email Address</a>
@@ -62,7 +73,7 @@ export async function sendVerificationEmail(to, token, name) {
 }
 
 export async function sendPasswordResetEmail(to, token) {
-  const resetUrl = `${env.CLIENT_ORIGINS[0]}/reset-password?token=${token}`;
+  const resetUrl = `${env.CLIENT_ORIGINS[0]}/reset-password?token=${encodeURIComponent(token)}`;
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #2D0C1E; border-radius: 12px; background-color: #FFFBF5; color: #2D0C1E;">
       <h2 style="font-family: serif; color: #FF3366; margin-top: 0;">Password Reset Request</h2>
@@ -79,35 +90,40 @@ export async function sendPasswordResetEmail(to, token) {
 export async function sendAccountLockoutEmail(to) {
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 2px solid #FF3366; border-radius: 12px; background-color: #FFF5F7; color: #2D0C1E;">
-      <h2 style="color: #FF3366;">Security Alert: Account Temporarily Locked</h2>
+      <h2 style="color: #FF3366;">Security Alert: Account Activity Notice</h2>
       <p>We detected multiple failed login attempts on your That Jalta Diya account.</p>
-      <p>For your protection, your account has been temporarily locked for 15 minutes.</p>
-      <p>If this wasn't you, we recommend resetting your password once the lockout ends.</p>
+      <p>For your protection, further login attempts are throttled with progressive delays.</p>
+      <p>If this wasn't you, we recommend resetting your password immediately.</p>
     </div>
   `;
-  return sendEmail({ to, subject: 'Security Alert: Account Locked - That Jalta Diya', html });
+  return sendEmail({ to, subject: 'Security Alert: Account Security Notice - That Jalta Diya', html });
 }
 
 export async function sendOrderConfirmationEmail(to, order) {
+  const safeOrderNumber = escapeHtml(order.orderNumber);
   const formattedTotal = (order.total / 100).toFixed(2);
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #2D0C1E; border-radius: 12px; background-color: #FFFBF5; color: #2D0C1E;">
       <h2 style="font-family: serif; color: #FF3366;">Thank you for your order! 🎉</h2>
-      <p>Your order <strong>#${order.orderNumber}</strong> has been received and is being prepared.</p>
+      <p>Your order <strong>#${safeOrderNumber}</strong> has been received and is being prepared.</p>
       <p><strong>Total Amount:</strong> ₹${formattedTotal}</p>
       <p>You can track your order status in your account dashboard at any time.</p>
     </div>
   `;
-  return sendEmail({ to, subject: `Order Confirmed #${order.orderNumber} - That Jalta Diya`, html });
+  return sendEmail({ to, subject: `Order Confirmed #${safeOrderNumber} - That Jalta Diya`, html });
 }
 
 export async function sendOrderStatusUpdateEmail(to, order) {
+  const safeOrderNumber = escapeHtml(order.orderNumber);
+  const safeStatus = escapeHtml(order.status);
+  const safeTracking = escapeHtml(order.trackingNumber || '');
+  const safeCourier = escapeHtml(order.courier || 'Courier');
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #2D0C1E; border-radius: 12px; background-color: #FFFBF5; color: #2D0C1E;">
       <h2 style="font-family: serif; color: #FF3366;">Order Status Update</h2>
-      <p>Your order <strong>#${order.orderNumber}</strong> status is now: <strong style="color: #FF3366;">${order.status}</strong></p>
-      ${order.trackingNumber ? `<p>Tracking Number: <strong>${order.trackingNumber}</strong> (${order.courier || 'Courier'})</p>` : ''}
+      <p>Your order <strong>#${safeOrderNumber}</strong> status is now: <strong style="color: #FF3366;">${safeStatus}</strong></p>
+      ${safeTracking ? `<p>Tracking Number: <strong>${safeTracking}</strong> (${safeCourier})</p>` : ''}
     </div>
   `;
-  return sendEmail({ to, subject: `Update on Order #${order.orderNumber}: ${order.status}`, html });
+  return sendEmail({ to, subject: `Update on Order #${safeOrderNumber}: ${safeStatus}`, html });
 }

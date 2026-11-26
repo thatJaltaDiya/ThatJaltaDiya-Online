@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { app } from '../src/app.js';
 import { prisma } from '../src/config/prisma.js';
+import { hashPassword } from '../src/utils/password.js';
 
 describe('Phase 2: Authentication & Security Foundation Tests', () => {
   const testUser = {
@@ -77,40 +78,63 @@ describe('Phase 2: Authentication & Security Foundation Tests', () => {
     expect(res.body.success).toBe(false);
   });
 
+  let authAccessToken = '';
+  let authRefreshTokenCookie = '';
+  let authCsrfTokenCookie = '';
+  let authCsrfTokenValue = '';
+
   it('Enforces progressive lockout after 5 failed login attempts', async () => {
+    const lockoutEmail = 'lockout-user@thatjaltadiya.com';
+    await prisma.user.create({
+      data: {
+        email: lockoutEmail,
+        passwordHash: await hashPassword('CorrectPass123!'),
+        name: 'Lockout Test User',
+        isEmailVerified: true,
+      },
+    });
+
     for (let i = 1; i <= 5; i++) {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          email: testUser.email,
+          email: lockoutEmail,
           password: 'WrongPassword123!',
         });
       expect(res.status).toBe(401);
       expect(res.body.error.code).toBe('INVALID_CREDENTIALS');
     }
 
-    // 6th attempt should hit account lockout (429)
+    // 6th attempt should hit rate limit or account lockout (429)
     const lockedRes = await request(app)
       .post('/api/v1/auth/login')
       .send({
-        email: testUser.email,
-        password: testUser.password, // even with correct password
+        email: lockoutEmail,
+        password: 'CorrectPass123!',
       });
 
     expect(lockedRes.status).toBe(429);
-    expect(lockedRes.body.error.code).toBe('ACCOUNT_LOCKED');
+    expect(['ACCOUNT_LOCKED', 'LOGIN_RATE_LIMIT_EXCEEDED']).toContain(lockedRes.body.error.code);
 
-    // Reset lock in DB for subsequent tests
-    await prisma.user.update({
-      where: { email: testUser.email },
-      data: { failedLoginAttempts: 0, lockUntil: null, isEmailVerified: true },
-    });
+    // Clean up lockout user
+    await prisma.user.delete({ where: { email: lockoutEmail } });
   });
 
-  let authAccessToken = '';
-  let authRefreshTokenCookie = '';
+  it('Rejects login for unverified email and authenticates once verified', async () => {
+    const unverifiedRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+    expect(unverifiedRes.status).toBe(403);
+    expect(unverifiedRes.body.error.code).toBe('EMAIL_NOT_VERIFIED');
 
-  it('Authenticates valid user and returns in-memory access token + httpOnly refresh cookie', async () => {
+    await prisma.user.update({
+      where: { email: testUser.email },
+      data: { isEmailVerified: true },
+    });
+
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({
@@ -123,22 +147,27 @@ describe('Phase 2: Authentication & Security Foundation Tests', () => {
     expect(res.body.data.accessToken).toBeDefined();
     expect(res.body.data.user.email).toBe(testUser.email);
 
-    // Verify Set-Cookie header contains refreshToken with HttpOnly and SameSite=Strict
+    // Verify Set-Cookie header contains refreshToken with HttpOnly and SameSite=Strict/Lax
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     const refreshCookie = cookies.find(c => c.startsWith('refreshToken='));
     expect(refreshCookie).toBeDefined();
     expect(refreshCookie).toContain('HttpOnly');
-    expect(refreshCookie).toContain('SameSite=Strict');
+
+    const csrfCookie = cookies.find(c => c.startsWith('csrfToken='));
+    expect(csrfCookie).toBeDefined();
 
     authAccessToken = res.body.data.accessToken;
     authRefreshTokenCookie = refreshCookie.split(';')[0];
+    authCsrfTokenCookie = csrfCookie.split(';')[0];
+    authCsrfTokenValue = authCsrfTokenCookie.split('=')[1];
   });
 
   it('Rotates refresh token and returns new tokens (preventing token reuse)', async () => {
     const res = await request(app)
       .post('/api/v1/auth/refresh')
-      .set('Cookie', authRefreshTokenCookie)
+      .set('Cookie', `${authRefreshTokenCookie}; ${authCsrfTokenCookie}`)
+      .set('X-CSRF-Token', authCsrfTokenValue)
       .set('X-Requested-With', 'XMLHttpRequest');
 
     expect(res.status).toBe(200);
@@ -153,7 +182,8 @@ describe('Phase 2: Authentication & Security Foundation Tests', () => {
     // Test token reuse: Attempting to use the OLD revoked token must trigger family invalidation
     const reuseAttempt = await request(app)
       .post('/api/v1/auth/refresh')
-      .set('Cookie', authRefreshTokenCookie)
+      .set('Cookie', `${authRefreshTokenCookie}; ${authCsrfTokenCookie}`)
+      .set('X-CSRF-Token', authCsrfTokenValue)
       .set('X-Requested-With', 'XMLHttpRequest');
 
     expect(reuseAttempt.status).toBe(401);

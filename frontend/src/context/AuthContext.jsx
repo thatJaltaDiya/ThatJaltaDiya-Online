@@ -3,28 +3,51 @@ import { api } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
+// Deduplicate mount refresh across React StrictMode double-invocations so
+// single-use refresh token rotation never triggers false reuse detection.
+let pendingInitAuthPromise = null;
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Silent refresh on mount
   useEffect(() => {
+    let active = true;
+
     async function initAuth() {
       try {
-        const res = await api.post('/auth/refresh');
+        if (!pendingInitAuthPromise) {
+          pendingInitAuthPromise = api.post('/auth/refresh').finally(() => {
+            setTimeout(() => {
+              pendingInitAuthPromise = null;
+            }, 500);
+          });
+        }
+
+        const res = await pendingInitAuthPromise;
+        if (!active) return;
+
         if (res.success && res.data?.user) {
           api.setAccessToken(res.data.accessToken);
           setUser(res.data.user);
         }
       } catch {
+        if (!active) return;
         // Not logged in or expired, ignore
         api.clearAccessToken();
         setUser(null);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
     initAuth();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = useCallback(async (email, password, turnstileToken) => {

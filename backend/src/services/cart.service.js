@@ -8,39 +8,41 @@ export async function getOrCreateCart({ userId = null, guestId = null }) {
     throw new Error('Either userId or guestId must be provided.');
   }
 
+  const cartInclude = {
+    items: {
+      include: {
+        product: {
+          include: {
+            images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+          },
+        },
+        variant: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    },
+  };
+
   let cart = await prisma.cart.findFirst({
     where: userId ? { userId } : { guestId },
-    include: {
-      items: {
-        include: {
-          product: {
-            include: {
-              images: { orderBy: { sortOrder: 'asc' }, take: 1 },
-            },
-          },
-          variant: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
+    include: cartInclude,
   });
 
   if (!cart) {
-    cart = await prisma.cart.create({
-      data: userId ? { userId } : { guestId },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                images: { orderBy: { sortOrder: 'asc' }, take: 1 },
-              },
-            },
-            variant: true,
-          },
-        },
-      },
-    });
+    try {
+      cart = await prisma.cart.create({
+        data: userId ? { userId } : { guestId },
+        include: cartInclude,
+      });
+    } catch (err) {
+      if (err.code === 'P2002') {
+        cart = await prisma.cart.findFirst({
+          where: userId ? { userId } : { guestId },
+          include: cartInclude,
+        });
+      } else {
+        throw err;
+      }
+    }
   }
 
   // Calculate totals and stock status

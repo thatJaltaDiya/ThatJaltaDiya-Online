@@ -10,8 +10,8 @@ export function Card({
   return (
     <div
       onClick={onClick}
-      className={`bg-surface-card rounded-2xl border-2 border-border shadow-pop p-5 transition-all duration-200 ${
-        hoverEffect ? 'hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-pop-md' : ''
+      className={`bg-white rounded-2xl border border-border/20 shadow-sm p-5 transition-all duration-300 ${
+        hoverEffect ? 'hover:shadow-md hover:-translate-y-0.5' : ''
       } ${className}`}
       {...props}
     >

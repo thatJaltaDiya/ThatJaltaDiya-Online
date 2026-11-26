@@ -61,7 +61,7 @@ export function About() {
             </div>
             <h3 className="font-editorial text-lg font-bold text-primary">Gift-Ready Unboxing</h3>
             <p className="text-xs text-primary/70 leading-relaxed font-medium">
-              Every parcel arrives in a gift box with ribbons, customized handwritten notes, and luxury aesthetic matches.
+              Every parcel arrives in a gift box with ribbons and aesthetic packaging.
             </p>
           </Card>
         </div>

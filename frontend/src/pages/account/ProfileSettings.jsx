@@ -18,12 +18,6 @@ export function ProfileSettings() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  // Phone Change with OTP State
-  const [newPhone, setNewPhone] = useState('');
-  const [phoneOtp, setPhoneOtp] = useState('');
-  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
-  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
-
   // Delete Account Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -57,44 +51,6 @@ export function ProfileSettings() {
       showToast({ type: 'error', message: err.message || 'Password update failed' });
     } finally {
       setUpdatingPassword(false);
-    }
-  };
-
-  const handleSendPhoneOtp = async () => {
-    if (!newPhone) return;
-    setSendingPhoneOtp(true);
-    try {
-      const res = await api.post('/auth/otp/send', {
-        identifier: newPhone,
-        purpose: 'PHONE_VERIFY',
-      });
-      if (res.success) {
-        setPhoneOtpSent(true);
-        showToast({ type: 'success', message: '6-digit verification code sent to your phone.' });
-      }
-    } catch (err) {
-      showToast({ type: 'error', message: err.message || 'Failed to send OTP' });
-    } finally {
-      setSendingPhoneOtp(false);
-    }
-  };
-
-  const handleVerifyPhone = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await api.post('/user/change-phone', {
-        phone: newPhone,
-        otpCode: phoneOtp,
-      });
-      if (res.success) {
-        updateUser({ phone: res.data.phone });
-        showToast({ type: 'success', message: 'Phone number updated and verified!' });
-        setNewPhone('');
-        setPhoneOtp('');
-        setPhoneOtpSent(false);
-      }
-    } catch (err) {
-      showToast({ type: 'error', message: err.message || 'OTP verification failed' });
     }
   };
 
@@ -135,53 +91,6 @@ export function ProfileSettings() {
             Save Details
           </Button>
         </form>
-      </Card>
-
-      {/* Phone Number Verification via OTP */}
-      <Card className="p-6 bg-white space-y-4">
-        <h3 className="font-editorial text-lg font-bold text-primary">Mobile Phone & OTP Verification</h3>
-        <p className="text-xs text-primary/70">
-          Current Phone: <strong>{user?.phone || 'Not added'}</strong>
-        </p>
-
-        {!phoneOtpSent ? (
-          <div className="flex gap-2 items-end">
-            <Input
-              label="New Phone Number"
-              placeholder="+91 98765 43210"
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleSendPhoneOtp}
-              disabled={!newPhone}
-              isLoading={sendingPhoneOtp}
-            >
-              Send OTP
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleVerifyPhone} className="space-y-3">
-            <Input
-              label="Enter 6-Digit OTP Code"
-              value={phoneOtp}
-              onChange={(e) => setPhoneOtp(e.target.value)}
-              maxLength={6}
-              placeholder="123456"
-              required
-            />
-            <div className="flex gap-2">
-              <Button type="submit" variant="accent" size="sm">
-                Verify & Save Phone
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setPhoneOtpSent(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
       </Card>
 
       {/* Change Password Card */}

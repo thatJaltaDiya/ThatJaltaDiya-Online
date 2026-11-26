@@ -43,7 +43,6 @@ import { AdminProducts } from './pages/admin/AdminProducts.jsx';
 import { AdminCategories } from './pages/admin/AdminCategories.jsx';
 import { AdminOrders } from './pages/admin/AdminOrders.jsx';
 import { AdminCustomers } from './pages/admin/AdminCustomers.jsx';
-import { AdminCoupons } from './pages/admin/AdminCoupons.jsx';
 import { AdminInventory } from './pages/admin/AdminInventory.jsx';
 import { AdminSettings } from './pages/admin/AdminSettings.jsx';
 import { AdminContactMessages } from './pages/admin/AdminContactMessages.jsx';
@@ -70,7 +69,14 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
-        <Route path="/cart" element={<Cart />} />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <Cart />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
@@ -134,7 +140,6 @@ export default function App() {
         <Route path="categories" element={<AdminCategories />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="customers" element={<AdminCustomers />} />
-        <Route path="coupons" element={<AdminCoupons />} />
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="contact-messages" element={<AdminContactMessages />} />

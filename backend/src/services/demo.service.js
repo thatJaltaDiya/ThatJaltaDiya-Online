@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma.js';
-import { deleteImageFile } from './storage.service.js';
+import { deleteImageFiles } from './storage.service.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -31,15 +31,25 @@ export async function checkDemoDataStatus() {
 export async function deleteAllDemoData(adminId) {
   logger.info({ adminId }, 'Initiating bulk demo data cleanup');
 
-  // 1. Fetch all demo product images to remove from disk/storage
-  const demoImages = await prisma.productImage.findMany({
-    where: { isDemo: true },
-    select: { url: true },
-  });
+  // 1. Fetch all demo product and category images to remove from disk/storage
+  const [demoImages, demoCategories] = await Promise.all([
+    prisma.productImage.findMany({
+      where: { isDemo: true },
+      select: { url: true, storageKey: true },
+    }),
+    prisma.category.findMany({
+      where: { isDemo: true },
+      select: { image: true },
+    }),
+  ]);
 
-  // Delete physical/CDN files
-  for (const img of demoImages) {
-    await deleteImageFile(img.url);
+  // Delete physical/CDN files through storage interface
+  const keysToDelete = [
+    ...demoImages.map(img => img.storageKey || img.url),
+    ...demoCategories.map(cat => cat.image).filter(Boolean),
+  ];
+  if (keysToDelete.length > 0) {
+    await deleteImageFiles(keysToDelete);
   }
 
   // 2. Clear demo cart and wishlist items

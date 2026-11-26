@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuth } from './AuthContext.jsx';
 import { useToast } from './ToastContext.jsx';
@@ -17,6 +18,8 @@ function getOrCreateGuestId() {
 export function CartProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [cart, setCart] = useState({ items: [], subtotal: 0, totalItems: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -56,24 +59,28 @@ export function CartProvider({ children }) {
   }, [isAuthenticated, fetchCart]);
 
   const addToCart = useCallback(async (productId, variantId = null, quantity = 1) => {
+    if (!isAuthenticated) {
+      showToast({ type: 'info', message: 'Please sign in to add items to your bag.' });
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`);
+      return { success: false };
+    }
+
     try {
-      const guestId = !isAuthenticated ? getOrCreateGuestId() : undefined;
       const res = await api.post('/cart/items', {
         productId,
         variantId,
         quantity,
-        guestId,
       });
       if (res.success) {
         setCart(res.data);
-        showToast({ type: 'success', message: 'Added to your bouquet bag! 🌸' });
+        showToast({ type: 'success', message: 'Added to your bag! 🌸' });
       }
       return res;
     } catch (err) {
       showToast({ type: 'error', message: err.message || 'Could not add item to bag.' });
       throw err;
     }
-  }, [isAuthenticated, showToast]);
+  }, [isAuthenticated, showToast, navigate, location.pathname, location.search]);
 
   const updateQuantity = useCallback(async (cartItemId, quantity) => {
     try {

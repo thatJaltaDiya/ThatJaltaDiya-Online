@@ -25,13 +25,46 @@ async function main() {
     }
   }
 
-  const normalizedEmail = adminEmail.trim().toLowerCase();
+  const COMMON_WEAK_PASSWORDS = [
+  'password',
+  'admin123',
+  '123456789012',
+  'qwertyuiop12',
+  'ownerpassword',
+  'ownerpassword123!',
+  'thatjaltadiya',
+  'adminpassword',
+];
 
-  // Validate password strength
-  const passValidation = passwordSchema.safeParse(adminPassword);
-  if (!passValidation.success) {
-    console.error('Password does not meet security requirements:');
-    passValidation.error.errors.forEach(e => console.error(`- ${e.message}`));
+function validateAdminPassword(password) {
+  if (!password || password.length < 12) {
+    return 'Admin password must be at least 12 characters long.';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'Admin password must contain at least one uppercase letter.';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'Admin password must contain at least one lowercase letter.';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Admin password must contain at least one number.';
+  }
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+    return 'Admin password must contain at least one special character.';
+  }
+  const lower = password.toLowerCase();
+  for (const weak of COMMON_WEAK_PASSWORDS) {
+    if (lower.includes(weak)) {
+      return `Password contains easily guessable dictionary phrase: "${weak}".`;
+    }
+  }
+  return null;
+}
+
+  // Validate admin password strength
+  const adminPasswordError = validateAdminPassword(adminPassword);
+  if (adminPasswordError) {
+    console.error(`❌ Admin Password Rejected: ${adminPasswordError}`);
     process.exit(1);
   }
 

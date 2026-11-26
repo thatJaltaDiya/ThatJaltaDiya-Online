@@ -37,44 +37,46 @@ export function WishlistPage() {
         {wishlistItems.map(item => {
           const product = item.product;
           return (
-            <Card key={item.id} className="p-3 flex flex-col justify-between group">
+            <div
+              key={item.id}
+              className="bg-white rounded-2xl p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+            >
               <div>
-                <div className="relative aspect-square rounded-xl overflow-hidden border-2 border-border bg-surface mb-3">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-surface/40 mb-3">
                   <img
                     src={product.image || "/uploads/placeholder.webp"}
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <button
                     onClick={() => toggleWishlist(product.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 text-accent hover:scale-110 transition-transform"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 text-accent shadow-sm hover:scale-110 active:scale-95 flex items-center justify-center transition-all border border-border/10"
                     aria-label="Remove from favorites"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
 
-                <Link to={`/product/${product.slug}`}>
-                  <h4 className="font-editorial text-sm font-bold text-primary hover:text-accent truncate">
+                <Link to={`/product/${product.slug}`} className="block">
+                  <h4 className="font-sans text-sm font-bold text-primary hover:text-accent transition-colors truncate">
                     {product.name}
                   </h4>
                 </Link>
-                <div className="text-sm font-extrabold text-accent mt-1">
+                <div className="text-sm font-extrabold text-primary mt-1">
                   ₹{(product.price / 100).toFixed(0)}
                 </div>
               </div>
 
-              <Button
-                size="sm"
-                variant="secondary"
+              <button
+                type="button"
                 onClick={() => addToCart(product.id, null, 1)}
                 disabled={product.stock <= 0}
-                className="w-full mt-3 text-xs"
+                className="inline-flex items-center justify-center gap-1.5 w-full mt-3 py-2 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
-                <ShoppingBag className="w-3.5 h-3.5 mr-1" />
+                <ShoppingBag className="w-3.5 h-3.5" />
                 <span>Move To Bag</span>
-              </Button>
-            </Card>
+              </button>
+            </div>
           );
         })}
       </div>

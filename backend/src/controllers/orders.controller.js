@@ -15,7 +15,10 @@ export async function createOrder(req, res, next) {
       userAgent,
     });
 
-    return apiSuccess(res, order, 'Order placed successfully!', 201);
+    if (order.isReplay) {
+      res.setHeader('X-Cache', 'HIT');
+    }
+    return apiSuccess(res, orderService.serializeCustomerOrder(order), 'Order placed successfully!', 201);
   } catch (error) {
     next(error);
   }
@@ -24,7 +27,7 @@ export async function createOrder(req, res, next) {
 export async function listOrders(req, res, next) {
   try {
     const orders = await orderService.listUserOrders(req.user.id);
-    return apiSuccess(res, orders);
+    return apiSuccess(res, orderService.serializeCustomerOrder(orders));
   } catch (error) {
     next(error);
   }
@@ -33,7 +36,7 @@ export async function listOrders(req, res, next) {
 export async function getOrder(req, res, next) {
   try {
     const order = await orderService.getOrderById(req.user.id, req.params.orderId);
-    return apiSuccess(res, order);
+    return apiSuccess(res, orderService.serializeCustomerOrder(order));
   } catch (error) {
     next(error);
   }
@@ -42,7 +45,7 @@ export async function getOrder(req, res, next) {
 export async function cancelOrder(req, res, next) {
   try {
     const updated = await orderService.cancelOrderByCustomer(req.user.id, req.params.orderId);
-    return apiSuccess(res, updated, 'Order cancelled successfully.');
+    return apiSuccess(res, orderService.serializeCustomerOrder(updated), 'Order cancelled successfully.');
   } catch (error) {
     next(error);
   }

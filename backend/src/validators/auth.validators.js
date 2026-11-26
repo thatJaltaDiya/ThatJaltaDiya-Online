@@ -20,7 +20,10 @@ export const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
   password: passwordSchema,
   name: z.string().min(2, 'Name must be at least 2 characters').max(100).trim(),
-  phone: z.string().regex(/^[0-9+ -]{10,15}$/, 'Invalid phone number format').optional(),
+  phone: z.preprocess(
+    val => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string().regex(/^[0-9+ -]{10,15}$/, 'Invalid phone number format').optional()
+  ),
   turnstileToken: z.string().optional(),
 }).strict();
 
@@ -28,6 +31,8 @@ export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
   password: z.string().min(1, 'Password is required').max(128),
   turnstileToken: z.string().optional(),
+  totpCode: z.string().optional(),
+  backupCode: z.string().optional(),
 }).strict();
 
 export const forgotPasswordSchema = z.object({
@@ -55,13 +60,13 @@ export const resendVerificationSchema = z.object({
 }).strict();
 
 export const sendOtpSchema = z.object({
-  identifier: z.string().min(3).max(255),
-  purpose: z.enum(['PHONE_VERIFY', 'EMAIL_CHANGE', 'LOGIN']),
+  identifier: z.string().email('Please enter a valid email address').max(255),
+  purpose: z.enum(['EMAIL_CHANGE', 'LOGIN']),
   turnstileToken: z.string().optional(),
 }).strict();
 
 export const verifyOtpSchema = z.object({
-  identifier: z.string().min(3).max(255),
-  purpose: z.enum(['PHONE_VERIFY', 'EMAIL_CHANGE', 'LOGIN']),
+  identifier: z.string().email('Please enter a valid email address').max(255),
+  purpose: z.enum(['EMAIL_CHANGE', 'LOGIN']),
   code: z.string().length(6, 'OTP must be 6 digits'),
 }).strict();

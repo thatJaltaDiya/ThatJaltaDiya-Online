@@ -30,6 +30,7 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  REFUND_REQUIRED
 }
 
 enum DiscountType {
@@ -50,6 +51,9 @@ model User {
   isDeleted             Boolean                  @default(false)
   failedLoginAttempts   Int                      @default(0)
   lockUntil             DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean                  @default(false)
+  twoFactorBackupCodes  String[]                 @default([])
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -61,6 +65,7 @@ model User {
   emailTokens           EmailVerificationToken[]
   passwordResetTokens   PasswordResetToken[]
   auditLogs             AuditLog[]
+  couponRedemptions     CouponRedemption[]
 
   @@index([email])
   @@index([role])
@@ -144,14 +149,15 @@ model Product {
 }
 
 model ProductImage {
-  id        String   @id @default(uuid())
-  productId String
-  url       String
-  altText   String?
-  sortOrder Int      @default(0)
-  isPrimary Boolean  @default(false)
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  productId  String
+  url        String
+  storageKey String?
+  altText    String?
+  sortOrder  Int      @default(0)
+  isPrimary  Boolean  @default(false)
+  isDemo     Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -242,7 +248,9 @@ model Order {
   idempotencyKey String        @unique
   status         OrderStatus   @default(PENDING)
   paymentStatus  PaymentStatus @default(PENDING)
-  paymentMethod  String        @default("TEST") // "CARD", "UPI", "COD", "TEST"
+  paymentMethod  String        @default("TEST") // "CARD", "UPI", "COD", "TEST", "RAZORPAY"
+  paymentId      String?
+  razorpayOrderId String?
   subtotal       Int           // in paise
   discount       Int           @default(0) // in paise
   shippingFee    Int           @default(0) // in paise
@@ -254,6 +262,7 @@ model Order {
   trackingNumber String?
   courier        String?
   internalNotes  String?
+  paymentExpiresAt DateTime?
   ipAddress      String?
   userAgent      String?
   isDemo         Boolean       @default(false)
@@ -262,12 +271,36 @@ model Order {
 
   user           User          @relation(fields: [userId], references: [id])
   items          OrderItem[]
+  payments       Payment[]
+  couponRedemptions CouponRedemption[]
 
   @@index([userId])
   @@index([status])
   @@index([orderNumber])
   @@index([createdAt])
   @@index([isDemo])
+  @@index([status, paymentExpiresAt])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String
+  transactionId   String?
+  razorpayOrderId String?
+  amount          Int
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  gateway         String        @default("razorpay")
+  payload         Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([transactionId])
+  @@index([razorpayOrderId])
+  @@map("payments")
 }
 
 model OrderItem {
@@ -290,22 +323,41 @@ model OrderItem {
 }
 
 model Coupon {
-  id            String       @id @default(uuid())
-  code          String       @unique
+  id            String             @id @default(uuid())
+  code          String             @unique
   description   String?
-  discountType  DiscountType @default(PERCENTAGE)
-  discountValue Int          // percentage (e.g. 15 for 15%) or flat amount in paise
-  minOrderValue Int          @default(0) // in paise
-  maxDiscount   Int?         // in paise (optional ceiling for % discounts)
+  discountType  DiscountType       @default(PERCENTAGE)
+  discountValue Int                // percentage (e.g. 15 for 15%) or flat amount in paise
+  minOrderValue Int                @default(0) // in paise
+  maxDiscount   Int?               // in paise (optional ceiling for % discounts)
   startsAt      DateTime?
   expiresAt     DateTime?
-  usageLimit    Int?         // max total times this coupon can be used
-  usageCount    Int          @default(0)
-  isActive      Boolean      @default(true)
-  createdAt     DateTime     @default(now())
+  usageLimit    Int?               // max total times this coupon can be used
+  usageCount    Int                @default(0)
+  perUserLimit  Int                @default(1)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+
+  redemptions   CouponRedemption[]
 
   @@index([code])
   @@index([isActive])
+}
+
+model CouponRedemption {
+  id        String   @id @default(uuid())
+  couponId  String
+  userId    String
+  orderId   String
+  createdAt DateTime @default(now())
+
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, orderId])
+  @@index([couponId, userId])
+  @@index([userId])
 }
 
 model StockLog {
@@ -401,7 +453,7 @@ model PasswordResetToken {
 model OtpRequest {
   id         String   @id @default(uuid())
   identifier String   // phone number or email address
-  purpose    String   // "PHONE_VERIFY", "EMAIL_CHANGE", "LOGIN"
+  purpose    String   // "EMAIL_CHANGE", "LOGIN"
   codeHash   String   // argon2/bcrypt hash of 6-digit OTP
   attempts   Int      @default(0)
   expiresAt  DateTime

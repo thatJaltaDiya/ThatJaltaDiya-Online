@@ -25,8 +25,7 @@ export function ShippingPolicy() {
 
           <h3 className="font-editorial text-lg font-bold text-primary">2. Shipping Charges</h3>
           <p>
-            - Standard Courier Delivery: Flat ₹99 across India for orders below ₹1,499.<br />
-            - <strong>FREE SHIPPING:</strong> Automatically applied at checkout on all orders totaling ₹1,499 or higher.
+            - Standard Courier Delivery: Flat ₹99 across India.
           </p>
 
           <h3 className="font-editorial text-lg font-bold text-primary">3. Transit & Couriers</h3>

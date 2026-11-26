@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ShieldCheck, Truck, Gift, Check, Tag, Lock, CreditCard } from 'lucide-react';
+import { ShieldCheck, Truck, Check, Lock, CreditCard } from 'lucide-react';
 import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { Card } from '../components/ui/Card.jsx';
@@ -10,6 +10,21 @@ import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { api } from '../services/api.js';
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export function Checkout() {
   const { cart, clearCartState } = useCart();
@@ -34,11 +49,8 @@ export function Checkout() {
   });
 
   const [notes, setNotes] = useState('');
-  const [giftMessage, setGiftMessage] = useState('');
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [razorpayEnabled, setRazorpayEnabled] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -46,47 +58,32 @@ export function Checkout() {
       return;
     }
 
-    async function loadAddresses() {
+    async function loadCheckoutInit() {
       try {
-        const res = await api.get('/addresses');
-        if (res.success && res.data.length > 0) {
-          setSavedAddresses(res.data);
-          const defaultAddr = res.data.find(a => a.isDefault) || res.data[0];
+        const [addrRes, payRes] = await Promise.all([
+          api.get('/addresses'),
+          api.get('/payments/config').catch(() => ({ success: false })),
+        ]);
+        if (addrRes.success && addrRes.data.length > 0) {
+          setSavedAddresses(addrRes.data);
+          const defaultAddr = addrRes.data.find(a => a.isDefault) || addrRes.data[0];
           setSelectedAddressId(defaultAddr.id);
         } else {
           setIsAddingNewAddress(true);
+        }
+        if (payRes?.success && payRes.data?.enabled) {
+          setRazorpayEnabled(true);
         }
       } catch {
         setIsAddingNewAddress(true);
       }
     }
-    loadAddresses();
+    loadCheckoutInit();
   }, [isAuthenticated, navigate]);
-
-  const handleApplyCoupon = async (e) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-    setApplyingCoupon(true);
-    try {
-      const res = await api.post('/coupons/validate', {
-        code: couponCode.trim(),
-        subtotal: cart.subtotal,
-      });
-      if (res.success) {
-        setAppliedCoupon(res.data);
-        showToast({ type: 'success', message: 'Coupon applied successfully! 🎉' });
-      }
-    } catch (err) {
-      showToast({ type: 'error', message: err.message || 'Invalid coupon' });
-    } finally {
-      setApplyingCoupon(false);
-    }
-  };
 
   const calculateFinalTotal = () => {
     const shippingFee = cart.subtotal >= 149900 ? 0 : 9900;
-    const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-    return Math.max(0, cart.subtotal - discount + shippingFee);
+    return Math.max(0, cart.subtotal + shippingFee);
   };
 
   const handlePlaceOrder = async () => {
@@ -99,8 +96,18 @@ export function Checkout() {
       return;
     }
 
-    if (!selectedAddressId && (!newAddress.recipientName || !newAddress.street || !newAddress.city)) {
-      showToast({ type: 'error', message: 'Please provide a valid shipping address.' });
+    if (
+      (!selectedAddressId || isAddingNewAddress) &&
+      (
+        !newAddress.recipientName.trim() ||
+        !newAddress.phone.trim() ||
+        !newAddress.street.trim() ||
+        !newAddress.city.trim() ||
+        !newAddress.state.trim() ||
+        !newAddress.postalCode.trim()
+      )
+    ) {
+      showToast({ type: 'error', message: 'Please fill in all required shipping address fields (name, phone, street, city, state, PIN code).' });
       return;
     }
 
@@ -109,10 +116,8 @@ export function Checkout() {
 
     try {
       let payload = {
-        paymentMethod: 'TEST',
-        couponCode: appliedCoupon?.code || null,
+        paymentMethod: razorpayEnabled ? 'RAZORPAY' : 'TEST',
         notes: notes || null,
-        giftMessage: giftMessage || null,
       };
 
       if (selectedAddressId && !isAddingNewAddress) {
@@ -137,6 +142,65 @@ export function Checkout() {
       });
 
       if (res.success) {
+        if (razorpayEnabled) {
+          const loaded = await loadRazorpayScript();
+          if (!loaded) {
+            throw new Error('Could not load Razorpay checkout. Please check your connection and try again.');
+          }
+
+          const intentRes = await api.post('/payments/razorpay/order', {
+            orderId: res.data.id,
+          });
+
+          if (!intentRes.success) {
+            throw new Error(intentRes.error?.message || 'Failed to initialize Razorpay payment.');
+          }
+
+          const { keyId, razorpayOrderId, amount, currency, orderNumber } = intentRes.data;
+          const rzp = new window.Razorpay({
+            key: keyId,
+            amount,
+            currency,
+            name: 'That Jalta Diya',
+            description: `Order #${orderNumber}`,
+            image: `${window.location.origin}/logo.jpg`,
+            order_id: razorpayOrderId,
+            prefill: {
+              name: user?.name || '',
+              email: user?.email || '',
+              contact: user?.phone || '',
+            },
+            theme: { color: '#E01E5A' },
+            handler: async (response) => {
+              try {
+                const verifyRes = await api.post('/payments/razorpay/verify', {
+                  orderId: res.data.id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+                if (verifyRes.success) {
+                  clearCartState();
+                  showToast({ type: 'success', message: 'Payment verified & order confirmed! ✨' });
+                  navigate(`/order-confirmation/${orderNumber}`, { state: { order: verifyRes.data } });
+                }
+              } catch (verifyErr) {
+                showToast({ type: 'error', message: verifyErr.message || 'Payment verification failed.' });
+                setIsPlacingOrder(false);
+              }
+            },
+            modal: {
+              ondismiss: () => {
+                setIsPlacingOrder(false);
+                showToast({ type: 'info', message: 'Payment cancelled. Your order is saved as pending.' });
+              },
+            },
+          });
+
+          rzp.open();
+          return;
+        }
+
         clearCartState();
         showToast({ type: 'success', message: 'Order placed successfully! ✨' });
         navigate(`/order-confirmation/${res.data.orderNumber}`, { state: { order: res.data } });
@@ -150,6 +214,7 @@ export function Checkout() {
   if (cart.items.length === 0) {
     return (
       <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <h1 className="sr-only">Checkout</h1>
         <h2 className="font-editorial text-2xl font-bold text-primary mb-3">Your Bag is Empty</h2>
         <Link to="/shop"><Button variant="accent">Continue Shopping</Button></Link>
       </div>
@@ -165,7 +230,7 @@ export function Checkout() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <Badge variant="butter" tilt={true} className="mb-2">CHECKOUT</Badge>
-          <h1 className="font-editorial text-3xl sm:text-4xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl lg:text-4xl font-extrabold text-primary break-words">
             Complete Your Gift Order
           </h1>
         </div>
@@ -197,11 +262,10 @@ export function Checkout() {
                       <div
                         key={addr.id}
                         onClick={() => setSelectedAddressId(addr.id)}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          selectedAddressId === addr.id
-                            ? 'border-accent bg-accent/5 ring-1 ring-accent shadow-pop-sm font-bold'
-                            : 'border-border/40 hover:border-border'
-                        }`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedAddressId === addr.id
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm font-bold'
+                          : 'border-border/30 hover:border-border/60'
+                          }`}
                       >
                         <div className="flex items-center justify-between text-xs font-bold text-primary">
                           <span>{addr.recipientName}</span>
@@ -277,51 +341,29 @@ export function Checkout() {
               )}
             </Card>
 
-            {/* Step 2: Personalized Gift Note */}
+            {/* Step 2: Payment Method (Razorpay) */}
             <Card className="p-6">
               <h2 className="font-editorial text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                <Gift className="w-5 h-5 text-accent" />
-                <span>2. Complimentary Gift Message (Optional)</span>
+                <CreditCard className="w-5 h-5 text-accent" />
+                <span>2. Payment Method</span>
               </h2>
-              <textarea
-                value={giftMessage}
-                onChange={(e) => setGiftMessage(e.target.value)}
-                maxLength={500}
-                rows={3}
-                placeholder="Write your sweet birthday wish, anniversary note, or message for the recipient. We will handwrite this on a bespoke pastel card inside the parcel! ✨"
-                className="w-full p-3.5 rounded-xl border-2 border-border/80 bg-white text-sm font-medium focus:border-accent outline-none"
-              />
-            </Card>
 
-            {/* Step 3: Payment Step Component (Section 9 Integration Point) */}
-            <Card className="p-6 bg-surface border-2 border-border">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-border/10">
-                <h2 className="font-editorial text-xl font-bold text-primary flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-accent" />
-                  <span>3. Payment Method</span>
-                </h2>
-                <Badge variant="sage">DEV TEST MODE</Badge>
-              </div>
-
-              {/* 
-                // =========================================================================
-                // TODO: PAYMENT INTEGRATION
-                // =========================================================================
-                // In production, instantiate payment gateway client here (e.g. Razorpay modal,
-                // Stripe Elements, or Cashfree SDK).
-                // 1. Call /api/v1/payment/intent to get order_id & clientSecret
-                // 2. Open gateway checkout modal
-                // 3. Verify signature via backend adapter PaymentProvider.verifyPayment()
-                // =========================================================================
-              */}
-              <div className="p-4 rounded-xl border-2 border-dashed border-border/50 bg-white space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Development Test Order Mode Active</span>
+              <div className="p-4 rounded-xl border border-primary/25 bg-surface/60 flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <Check className="w-3 h-3" />
                 </div>
-                <p className="text-xs text-primary/70 leading-relaxed font-medium">
-                  Payment gateway integration point is isolated per project brief (Section 9). Test orders proceed seamlessly with automated stock decrement, idempotency verification, and invoice generation.
-                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-primary">Razorpay Checkout</span>
+                    <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      100% Secure
+                    </span>
+                  </div>
+                  <p className="text-xs text-primary/70 font-medium">
+                    Pay via UPI, Credit &amp; Debit Cards, NetBanking, or Wallets. You will be prompted to complete payment when placing your order.
+                  </p>
+                </div>
               </div>
             </Card>
           </div>
@@ -346,51 +388,16 @@ export function Checkout() {
                 ))}
               </div>
 
-              {/* Coupon Form */}
-              <form onSubmit={handleApplyCoupon} className="pt-3 border-t border-border/10 flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Coupon code (e.g. WELCOME10)"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2 rounded-xl border-2 border-border text-xs font-bold uppercase tracking-wider outline-none focus:border-accent"
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="secondary"
-                  isLoading={applyingCoupon}
-                >
-                  Apply
-                </Button>
-              </form>
-
-              {appliedCoupon && (
-                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 flex items-center justify-between text-xs font-bold text-emerald-900">
-                  <span className="flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5" />
-                    <span>{appliedCoupon.code} Applied</span>
-                  </span>
-                  <span>-₹{(appliedCoupon.discountAmount / 100).toFixed(0)}</span>
-                </div>
-              )}
-
               {/* Price Breakdown */}
               <div className="space-y-2.5 text-sm font-medium pt-3 border-t border-border/10">
                 <div className="flex justify-between">
                   <span className="text-primary/70">Subtotal</span>
                   <span className="font-bold text-primary">₹{(cart.subtotal / 100).toFixed(0)}</span>
                 </div>
-                {appliedCoupon && (
-                  <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>Discount</span>
-                    <span>-₹{(appliedCoupon.discountAmount / 100).toFixed(0)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-primary/70">Shipping</span>
                   <span className="font-bold text-primary">
-                    {cart.subtotal >= 149900 ? 'FREE' : '₹99'}
+                    {cart.subtotal >= 149900 ? '₹0' : '₹99'}
                   </span>
                 </div>
                 <div className="pt-3 border-t-2 border-border flex justify-between items-baseline font-editorial">

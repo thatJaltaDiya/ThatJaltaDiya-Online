@@ -31,18 +31,18 @@ export function Input({
         <input
           id={inputId}
           type={type}
-          className={`w-full px-4 py-2.5 min-h-[44px] bg-white text-primary text-sm font-medium rounded-xl border-2 transition-all outline-none ${
+          className={`w-full px-4 py-2.5 min-h-[44px] bg-white text-primary text-sm font-medium rounded-xl border transition-all outline-none ${
             Icon ? 'pl-10' : ''
           } ${
             error
-              ? 'border-accent ring-1 ring-accent'
-              : 'border-border/80 focus:border-accent focus:ring-1 focus:ring-accent'
+              ? 'border-red-500 ring-1 ring-red-500/20'
+              : 'border-border/30 focus:border-primary/40 focus:ring-1 focus:ring-primary/10'
           } ${className}`}
           {...props}
         />
       </div>
       {error && (
-        <p className="mt-1 text-xs font-medium text-accent animate-in fade-in">
+        <p className="mt-1 text-xs font-medium text-red-600 animate-in fade-in">
           {error}
         </p>
       )}

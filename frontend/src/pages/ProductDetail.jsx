@@ -96,6 +96,24 @@ export function ProductDetail() {
         <meta property="og:title" content={productData.name} />
         <meta property="og:description" content={productData.shortDescription || productData.name} />
         <meta property="og:image" content={images[0]?.url || ''} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": productData.name,
+            "image": images.map(img => img.url),
+            "description": productData.shortDescription || productData.name,
+            "sku": productData.sku,
+            "offers": {
+              "@type": "Offer",
+              "url": typeof window !== 'undefined' ? window.location.href : '',
+              "priceCurrency": "INR",
+              "price": (currentPrice / 100).toFixed(2),
+              "availability": isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+              "itemCondition": "https://schema.org/NewCondition"
+            }
+          })}
+        </script>
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -127,16 +145,11 @@ export function ProductDetail() {
                 }}
               />
               {/* Badges Overlay */}
-              <div className="absolute top-4 left-4 flex flex-col gap-1.5">
-                {productData.isBestseller && <Badge variant="butter" tilt={true}>BESTSELLER</Badge>}
-                {isOutOfStock ? (
+              {isOutOfStock && (
+                <div className="absolute top-4 left-4 flex flex-col gap-1.5">
                   <Badge variant="dark">OUT OF STOCK</Badge>
-                ) : currentStock <= 5 ? (
-                  <Badge variant="accent">ONLY {currentStock} LEFT</Badge>
-                ) : (
-                  <Badge variant="sage">READY TO SHIP</Badge>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Thumbnails Row */}
@@ -148,8 +161,8 @@ export function ProductDetail() {
                     onClick={() => setActiveImageIndex(idx)}
                     className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 cursor-pointer ${
                       activeImageIndex === idx
-                        ? 'border-accent ring-2 ring-accent scale-95'
-                        : 'border-border/60 hover:border-border'
+                        ? 'border-primary ring-2 ring-primary/20 scale-95'
+                        : 'border-border/30 hover:border-border/60'
                     }`}
                   >
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -163,9 +176,9 @@ export function ProductDetail() {
           <div className="space-y-6">
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-accent block mb-1">
-                {productData.category?.name} • SKU: {selectedVariant?.sku || productData.sku}
+                {productData.category?.name}
               </span>
-              <h1 className="font-editorial text-3xl sm:text-4xl font-extrabold text-primary leading-tight">
+              <h1 className="font-sans text-2xl sm:text-3xl lg:text-4xl font-bold text-primary leading-tight break-words">
                 {productData.name}
               </h1>
               {productData.shortDescription && (
@@ -181,14 +194,9 @@ export function ProductDetail() {
                 ₹{(currentPrice / 100).toFixed(0)}
               </span>
               {hasDiscount && (
-                <>
-                  <span className="text-base line-through text-primary/40 font-bold">
-                    ₹{(productData.compareAtPrice / 100).toFixed(0)}
-                  </span>
-                  <Badge variant="accent" className="ml-auto text-xs">
-                    SAVE ₹{((productData.compareAtPrice - currentPrice) / 100).toFixed(0)}
-                  </Badge>
-                </>
+                <span className="text-base line-through text-primary/40 font-bold">
+                  ₹{(productData.compareAtPrice / 100).toFixed(0)}
+                </span>
               )}
             </div>
 
@@ -206,10 +214,10 @@ export function ProductDetail() {
                         key={variant.id}
                         type="button"
                         onClick={() => setSelectedVariant(variant)}
-                        className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-accent bg-accent/5 ring-1 ring-accent font-bold shadow-pop-sm'
-                            : 'border-border/60 bg-white hover:border-border font-medium'
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20 font-bold shadow-sm'
+                            : 'border-border/30 bg-white hover:border-border font-medium'
                         }`}
                       >
                         <div className="text-xs font-bold text-primary truncate">{variant.name}</div>
@@ -254,7 +262,7 @@ export function ProductDetail() {
                   className="flex-1 text-sm font-extrabold uppercase tracking-wider"
                 >
                   <ShoppingBag className="w-5 h-5 mr-2" />
-                  <span>{isOutOfStock ? 'Sold Out' : 'Add To Bouquet Bag'}</span>
+                  <span>{isOutOfStock ? 'Sold Out' : 'Add To Bag'}</span>
                 </Button>
 
                 <button
@@ -266,26 +274,6 @@ export function ProductDetail() {
                 >
                   <Heart className={`w-5 h-5 ${itemWishlisted ? 'fill-accent text-accent' : ''}`} />
                 </button>
-              </div>
-            </div>
-
-            {/* Delivery & Artisan Perks */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/10 text-xs font-semibold text-primary/80">
-              <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-accent" />
-                <span>Express courier across India</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-butter" />
-                <span>100% soy wax & non-toxic</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Damage-free shockproof packaging</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-primary" />
-                <span>Complimentary gift tag included</span>
               </div>
             </div>
 
@@ -302,34 +290,45 @@ export function ProductDetail() {
 
         {/* Related Products Carousel */}
         {relatedProducts.length > 0 && (
-          <div className="mt-24 pt-12 border-t-2 border-border">
-            <Badge variant="butter" className="mb-2">YOU MAY ALSO LOVE</Badge>
-            <h2 className="font-editorial text-3xl font-extrabold text-primary mb-8">
+          <div className="mt-24 pt-12 border-t border-border/15">
+            <span className="text-xs font-bold tracking-wider text-accent uppercase block mb-2">YOU MAY ALSO LOVE</span>
+            <h2 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary mb-8">
               More Handcrafted Wonders
             </h2>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
               {relatedProducts.map(rel => (
-                <Card key={rel.id} className="p-3">
-                  <Link to={`/product/${rel.slug}`} className="block aspect-square rounded-xl overflow-hidden border-2 border-border bg-surface mb-3">
+                <div
+                  key={rel.id}
+                  className="bg-white rounded-2xl p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+                >
+                  <Link to={`/product/${rel.slug}`} className="block aspect-square rounded-xl overflow-hidden bg-surface/40 mb-3 relative">
                     <img
                       src={rel.images?.[0]?.url || "/uploads/placeholder.webp"}
                       alt={rel.name}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </Link>
-                  <Link to={`/product/${rel.slug}`}>
-                    <h4 className="font-editorial text-sm font-bold text-primary hover:text-accent truncate">
-                      {rel.name}
-                    </h4>
-                  </Link>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="font-editorial font-bold text-primary">₹{(rel.price / 100).toFixed(0)}</span>
-                    <Button size="sm" variant="secondary" onClick={() => addToCart(rel.id, null, 1)}>
-                      Add
-                    </Button>
+                  <div className="flex-1 flex flex-col justify-between">
+                    <Link to={`/product/${rel.slug}`} className="block">
+                      <h4 className="font-sans text-sm font-bold text-primary group-hover:text-accent transition-colors truncate">
+                        {rel.name}
+                      </h4>
+                    </Link>
+                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/10">
+                      <span className="font-editorial font-bold text-primary">₹{(rel.price / 100).toFixed(0)}</span>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(rel.id, null, 1)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent transition-colors shadow-sm"
+                        aria-label={`Add ${rel.name} to bag`}
+                      >
+                        <ShoppingBag className="w-3 h-3" />
+                        <span>Add</span>
+                      </button>
+                    </div>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           </div>

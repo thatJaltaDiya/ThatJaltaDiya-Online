@@ -19,14 +19,6 @@ router.patch(
 );
 
 router.post(
-  '/change-phone',
-  requireAuth,
-  writeLimiter,
-  validate({ body: v.changePhoneSchema }),
-  userController.changePhoneWithOtp
-);
-
-router.post(
   '/change-email',
   requireAuth,
   writeLimiter,

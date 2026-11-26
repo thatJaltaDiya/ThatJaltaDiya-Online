@@ -1,9 +1,10 @@
+import crypto from 'crypto';
 import { apiError } from '../utils/response.js';
 
 /**
- * CSRF Protection Middleware
- * Protects against cross-site request forgery when using cookie-based refresh tokens.
- * Verifies custom header 'x-requested-with' or 'x-csrf-token' on non-GET/HEAD/OPTIONS requests.
+ * Double-Submit CSRF Protection Middleware
+ * Protects cookie-authenticated state-changing routes (/refresh, /logout)
+ * Compares httpOnly-false cookie 'csrfToken' with request header 'x-csrf-token' using timingSafeEqual.
  */
 export function csrfProtection(req, res, next) {
   const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
@@ -11,12 +12,34 @@ export function csrfProtection(req, res, next) {
     return next();
   }
 
-  // If request has cookie or authorization header, ensure it originated from trusted client
-  const customHeader = req.headers['x-requested-with'] || req.headers['x-csrf-token'];
+  // Only enforce when client is presenting auth cookie (signed or unsigned)
+  const hasRefreshToken = Boolean(req.cookies?.refreshToken || req.signedCookies?.refreshToken);
+  if (!hasRefreshToken) {
+    return next();
+  }
 
-  // Check if header is present
-  if (!customHeader && req.cookies?.refreshToken) {
-    return apiError(res, 'CSRF verification failed. Missing expected custom request header.', 403, 'CSRF_DETECTED');
+  const cookieToken = req.cookies?.csrfToken || req.signedCookies?.csrfToken;
+  const headerToken = req.headers['x-csrf-token'];
+
+  if (!cookieToken || !headerToken) {
+    return apiError(
+      res,
+      'CSRF token missing. Security verification failed.',
+      403,
+      'CSRF_TOKEN_MISSING'
+    );
+  }
+
+  const cookieBuf = Buffer.from(String(cookieToken).trim(), 'utf-8');
+  const headerBuf = Buffer.from(String(headerToken).trim(), 'utf-8');
+
+  if (cookieBuf.length !== headerBuf.length || !crypto.timingSafeEqual(cookieBuf, headerBuf)) {
+    return apiError(
+      res,
+      'CSRF token mismatch. Security verification failed.',
+      403,
+      'CSRF_TOKEN_MISMATCH'
+    );
   }
 
   next();

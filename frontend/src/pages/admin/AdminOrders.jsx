@@ -15,24 +15,33 @@ export function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [refundRequiredCount, setRefundRequiredCount] = useState(0);
   const { showToast } = useToast();
 
   const statusFilter = searchParams.get('status') || '';
+  const paymentStatusFilter = searchParams.get('paymentStatus') || '';
   const searchQuery = searchParams.get('search') || '';
 
   // Order status update form state
   const [statusForm, setStatusForm] = useState({
     status: '',
-    trackingNumber: '',
-    courier: '',
     internalNotes: '',
   });
 
   const loadOrders = async () => {
     try {
-      const res = await api.get(`/admin/orders?status=${statusFilter}&search=${encodeURIComponent(searchQuery)}`);
+      const queryParts = [];
+      if (statusFilter) queryParts.push(`status=${encodeURIComponent(statusFilter)}`);
+      if (paymentStatusFilter) queryParts.push(`paymentStatus=${encodeURIComponent(paymentStatusFilter)}`);
+      if (searchQuery) queryParts.push(`search=${encodeURIComponent(searchQuery)}`);
+      const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
+      const res = await api.get(`/admin/orders${qs}`);
       if (res.success) {
         setOrders(res.data);
+        if (res.meta?.refundRequiredCount !== undefined) {
+          setRefundRequiredCount(res.meta.refundRequiredCount);
+        }
       }
     } catch {
       // ignore
@@ -43,14 +52,12 @@ export function AdminOrders() {
 
   useEffect(() => {
     loadOrders();
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, paymentStatusFilter, searchQuery]);
 
   const handleOpenDetail = (order) => {
     setSelectedOrder(order);
     setStatusForm({
       status: order.status,
-      trackingNumber: order.trackingNumber || '',
-      courier: order.courier || '',
       internalNotes: order.internalNotes || '',
     });
   };
@@ -73,6 +80,24 @@ export function AdminOrders() {
     }
   };
 
+  const handleMarkRefunded = async () => {
+    if (!selectedOrder) return;
+    if (!window.confirm(`Mark Order #${selectedOrder.orderNumber} as REFUNDED? Ensure payment has been manually refunded to customer.`)) return;
+    setUpdating(true);
+    try {
+      const res = await api.post(`/admin/orders/${selectedOrder.id}/mark-refunded`, { reason: 'Admin confirmed refund' });
+      if (res.success) {
+        showToast({ type: 'success', message: 'Order successfully marked as REFUNDED.' });
+        setSelectedOrder(res.data);
+        loadOrders();
+      }
+    } catch (err) {
+      showToast({ type: 'error', message: err.message || 'Failed to mark as refunded' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handlePrintSlip = () => {
     window.print();
   };
@@ -88,6 +113,27 @@ export function AdminOrders() {
         </div>
       </div>
 
+      {/* Refund Required Alert Banner */}
+      {refundRequiredCount > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⚠️</span>
+            <span>
+              <strong>Action Required:</strong> {refundRequiredCount} order(s) flagged as{' '}
+              <code className="bg-amber-200 px-1.5 py-0.5 rounded text-[11px] font-mono">REFUND_REQUIRED</code>{' '}
+              (late payment confirmed on an already cancelled/expired order). Please review and issue refund.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ status: '', paymentStatus: 'REFUND_REQUIRED', search: '' })}
+            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap self-start sm:self-auto"
+          >
+            Filter Refund Orders
+          </button>
+        </div>
+      )}
+
       {/* Filter strip */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -96,24 +142,10 @@ export function AdminOrders() {
             type="text"
             placeholder="Search order #, customer name, tracking #..."
             value={searchQuery}
-            onChange={(e) => setSearchParams({ status: statusFilter, search: e.target.value })}
-            className="w-full pl-10 pr-4 py-2 bg-white rounded-full border-2 border-border text-xs font-bold focus:border-accent outline-none"
+            onChange={(e) => setSearchParams({ status: statusFilter, paymentStatus: paymentStatusFilter, search: e.target.value })}
+            className="w-full pl-10 pr-4 py-2 bg-white rounded-full border border-border/30 text-xs font-bold focus:border-primary/40 focus:ring-1 focus:ring-primary/10 outline-none shadow-sm"
           />
         </div>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setSearchParams({ status: e.target.value, search: searchQuery })}
-          className="px-4 py-2 bg-white rounded-full border-2 border-border text-xs font-bold focus:border-accent outline-none cursor-pointer"
-        >
-          <option value="">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="PACKED">Packed</option>
-          <option value="SHIPPED">Shipped</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
       </div>
 
       {/* Orders Table */}
@@ -145,9 +177,16 @@ export function AdminOrders() {
                   <td className="py-3.5 px-4 font-bold">{order.items?.length || 0} items</td>
                   <td className="py-3.5 px-4 font-editorial font-bold text-sm">₹{(order.total / 100).toFixed(0)}</td>
                   <td className="py-3.5 px-4">
-                    <Badge variant={order.status === 'DELIVERED' ? 'sage' : order.status === 'CANCELLED' ? 'dark' : order.status === 'SHIPPED' ? 'butter' : 'accent'}>
-                      {order.status}
-                    </Badge>
+                    <div className="flex flex-col gap-1 items-start">
+                      <Badge variant={order.status === 'DELIVERED' ? 'sage' : order.status === 'CANCELLED' ? 'dark' : order.status === 'SHIPPED' ? 'butter' : 'accent'}>
+                        {order.status}
+                      </Badge>
+                      {order.paymentStatus === 'REFUND_REQUIRED' && (
+                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">
+                          ⚠️ Needs Refund
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <Button size="sm" variant="outline" onClick={() => handleOpenDetail(order)}>
@@ -171,53 +210,65 @@ export function AdminOrders() {
       >
         {selectedOrder && (
           <div className="space-y-6">
-            {/* Status & Fulfillment Form */}
-            <form onSubmit={handleUpdateStatus} className="p-4 rounded-xl border-2 border-border bg-surface space-y-3">
-              <h4 className="font-editorial text-sm font-bold text-primary">Update Status & Tracking</h4>
-              <div className="grid grid-cols-2 gap-3">
+            {/* Refund Action Callout if paymentStatus is REFUND_REQUIRED */}
+            {selectedOrder.paymentStatus === 'REFUND_REQUIRED' && (
+              <div className="p-4 rounded-xl border-2 border-red-300 bg-red-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-red-900">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
-                    Order Status
-                  </label>
-                  <select
-                    value={statusForm.status}
-                    onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-white rounded-lg border-2 border-border text-xs font-bold outline-none"
-                  >
-                    <option value="PENDING">PENDING</option>
-                    <option value="CONFIRMED">CONFIRMED</option>
-                    <option value="PACKED">PACKED</option>
-                    <option value="SHIPPED">SHIPPED</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                    <option value="REFUNDED">REFUNDED</option>
-                  </select>
+                  <span className="text-sm font-extrabold block text-red-700">⚠️ REFUND ACTION REQUIRED</span>
+                  <span>This order received payment after being cancelled or expired. Process the customer refund and record it below.</span>
                 </div>
-                <Input
-                  label="Courier Partner"
-                  placeholder="e.g. Blue Dart, Delhivery"
-                  value={statusForm.courier}
-                  onChange={(e) => setStatusForm({ ...statusForm, courier: e.target.value })}
-                />
+                <Button
+                  type="button"
+                  variant="dark"
+                  size="sm"
+                  isLoading={updating}
+                  onClick={handleMarkRefunded}
+                  className="whitespace-nowrap"
+                >
+                  Mark as Refunded
+                </Button>
+              </div>
+            )}
+
+            {/* Status & Local Fulfillment Form */}
+            <form onSubmit={handleUpdateStatus} className="p-4 rounded-xl border-2 border-border bg-surface space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-editorial text-sm font-bold text-primary">Order Status & Local Fulfillment</h4>
+                <Badge variant="sage" className="text-[10px]">Local Hand Delivery</Badge>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-butter/30 border border-butter text-[11px] font-medium text-primary/80">
+                🌱 <strong>Direct Local Delivery:</strong> Products are handcrafted and delivered directly by our team. No third-party courier agents or tracking numbers are needed.
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
+                  Order Status
+                </label>
+                <select
+                  value={statusForm.status}
+                  onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+                  className="w-full px-3 py-2 bg-white rounded-lg border-2 border-border text-xs font-bold outline-none"
+                >
+                  <option value="PENDING">PENDING (Awaiting Confirmation)</option>
+                  <option value="CONFIRMED">CONFIRMED (Order Accepted)</option>
+                  <option value="PROCESSING">PROCESSING (Crafting Bouquet / Packing)</option>
+                  <option value="DELIVERED">DELIVERED (Delivered to Customer)</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                </select>
               </div>
 
               <Input
-                label="Tracking Number / AWB"
-                placeholder="e.g. BD987654321IN"
-                value={statusForm.trackingNumber}
-                onChange={(e) => setStatusForm({ ...statusForm, trackingNumber: e.target.value })}
-              />
-
-              <Input
                 label="Internal Admin Notes (Private)"
-                placeholder="e.g. Special pink satin wrap requested"
+                placeholder="e.g. Special gift wrapping, hand delivery instructions"
                 value={statusForm.internalNotes}
                 onChange={(e) => setStatusForm({ ...statusForm, internalNotes: e.target.value })}
               />
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="submit" variant="accent" size="sm" isLoading={updating}>
-                  Save & Notify Customer
+                  Update Order Status
                 </Button>
               </div>
             </form>
@@ -256,10 +307,10 @@ export function AdminOrders() {
                 )}
               </div>
 
-              {selectedOrder.giftMessage && (
-                <div className="p-2.5 rounded-lg bg-pink-50 border border-pink-200 text-xs">
-                  <span className="font-bold text-accent block">Handwritten Gift Message:</span>
-                  <span className="italic text-primary/80">"{selectedOrder.giftMessage}"</span>
+              {selectedOrder.notes && (
+                <div className="p-2.5 rounded-lg bg-surface border border-border text-xs">
+                  <span className="font-bold text-primary block">Customer Order Notes:</span>
+                  <span className="text-primary/80">{selectedOrder.notes}</span>
                 </div>
               )}
 

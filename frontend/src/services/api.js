@@ -10,6 +10,12 @@ let inMemoryAccessToken = null;
 let isRefreshing = false;
 let failedQueue = [];
 
+function getCsrfTokenFromCookie() {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrfToken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 const processQueue = (error, token = null) => {
   failedQueue.forEach(prom => {
     if (error) {
@@ -41,6 +47,11 @@ export const api = {
     // If body is FormData (e.g. image uploads), let browser set Content-Type with boundary
     if (options.body instanceof FormData) {
       delete headers['Content-Type'];
+    }
+
+    const csrfToken = getCsrfTokenFromCookie();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
     }
 
     if (inMemoryAccessToken) {

@@ -1,122 +1,158 @@
 import sharp from 'sharp';
 import path from 'path';
-import fs from 'fs/promises';
-import { existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
+import { S3StorageAdapter } from './storage/S3StorageAdapter.js';
+import { LocalStorageAdapter } from './storage/LocalStorageAdapter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DEV_UPLOADS_DIR = path.join(__dirname, '../../uploads-dev');
 
-// Ensure dev uploads directory exists
-if (!existsSync(DEV_UPLOADS_DIR)) {
-  mkdirSync(DEV_UPLOADS_DIR, { recursive: true });
+let currentAdapter = null;
+
+/**
+ * Get or initialize the active storage adapter.
+ */
+export function getStorageAdapter() {
+  if (currentAdapter) return currentAdapter;
+
+  const hasS3Config =
+    Boolean(env.STORAGE_ENDPOINT) &&
+    Boolean(env.STORAGE_ACCESS_KEY_ID) &&
+    Boolean(env.STORAGE_SECRET_ACCESS_KEY);
+
+  if (env.NODE_ENV === 'production' || hasS3Config) {
+    if (!hasS3Config) {
+      throw new Error(
+        'FATAL: Neon Object Storage configuration (STORAGE_ENDPOINT, STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY) is required in production.'
+      );
+    }
+    logger.info('Initializing production S3/Neon Object Storage adapter');
+    currentAdapter = new S3StorageAdapter({
+      endpoint: env.STORAGE_ENDPOINT,
+      region: env.STORAGE_REGION,
+      accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+      secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+      bucket: env.STORAGE_BUCKET,
+      publicBaseUrl: env.STORAGE_PUBLIC_BASE_URL,
+      forcePathStyle: env.STORAGE_FORCE_PATH_STYLE,
+    });
+    return currentAdapter;
+  }
+
+  // Development and test fallback
+  logger.info({ dir: DEV_UPLOADS_DIR }, 'Using LocalStorageAdapter in development mode');
+  currentAdapter = new LocalStorageAdapter(DEV_UPLOADS_DIR);
+  return currentAdapter;
+}
+
+/**
+ * Override adapter for testing (e.g. mocked storage adapter in tests).
+ */
+export function setStorageAdapter(adapter) {
+  currentAdapter = adapter;
+}
+
+/**
+ * Reset storage adapter instance.
+ */
+export function resetStorageAdapter() {
+  currentAdapter = null;
 }
 
 /**
  * Process uploaded image buffer with sharp:
- * - Strips all EXIF metadata and malicious payloads
+ * - Strips all EXIF metadata and malicious embedded payloads
  * - Converts to optimized WebP
  * - Generates responsive sizes (large 1200px, medium 600px, thumb 250px)
- * - Uploads to Supabase Storage or falls back to server/uploads-dev/
+ * - Uploads using active storage adapter
  */
 export async function processAndStoreImage(fileBuffer, _originalName = 'image.jpg') {
   const fileId = crypto.randomUUID();
-  const baseName = `${fileId}`;
+  const storage = getStorageAdapter();
 
   // Process variants using sharp
-  const sharpPipeline = sharp(fileBuffer).rotate(); // auto-rotate based on EXIF before stripping
+  const sharpPipeline = sharp(fileBuffer).rotate();
 
   const [largeBuffer, mediumBuffer, thumbBuffer] = await Promise.all([
-    sharpPipeline.clone()
+    sharpPipeline
+      .clone()
       .resize({ width: 1200, withoutEnlargement: true })
       .webp({ quality: 85 })
       .toBuffer(),
-    sharpPipeline.clone()
+    sharpPipeline
+      .clone()
       .resize({ width: 600, height: 600, fit: 'cover' })
       .webp({ quality: 80 })
       .toBuffer(),
-    sharpPipeline.clone()
+    sharpPipeline
+      .clone()
       .resize({ width: 250, height: 250, fit: 'cover' })
       .webp({ quality: 75 })
       .toBuffer(),
   ]);
 
-  // If Supabase Storage is configured in env
-  if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const uploadToSupabase = async (buffer, filename) => {
-        const uploadUrl = `${env.SUPABASE_URL}/storage/v1/object/${env.SUPABASE_STORAGE_BUCKET}/${filename}`;
-        const res = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'image/webp',
-            'x-upsert': 'true',
-          },
-          body: buffer,
-        });
-        if (!res.ok) {
-          throw new Error(`Supabase upload error: ${res.statusText}`);
-        }
-        return `${env.SUPABASE_URL}/storage/v1/object/public/${env.SUPABASE_STORAGE_BUCKET}/${filename}`;
-      };
+  const largeKey = `${fileId}-lg.webp`;
+  const mediumKey = `${fileId}-md.webp`;
+  const thumbKey = `${fileId}-th.webp`;
 
-      const [largeUrl, mediumUrl, thumbUrl] = await Promise.all([
-        uploadToSupabase(largeBuffer, `${baseName}-lg.webp`),
-        uploadToSupabase(mediumBuffer, `${baseName}-md.webp`),
-        uploadToSupabase(thumbBuffer, `${baseName}-th.webp`),
-      ]);
-
-      return {
-        url: mediumUrl,
-        largeUrl,
-        mediumUrl,
-        thumbUrl,
-        isLocal: false,
-      };
-    } catch (err) {
-      logger.warn({ err }, 'Supabase storage upload failed, falling back to local dev storage');
-    }
-  }
-
-  // Local development storage fallback
-  const largeFile = `${baseName}-lg.webp`;
-  const mediumFile = `${baseName}-md.webp`;
-  const thumbFile = `${baseName}-th.webp`;
-
-  await Promise.all([
-    fs.writeFile(path.join(DEV_UPLOADS_DIR, largeFile), largeBuffer),
-    fs.writeFile(path.join(DEV_UPLOADS_DIR, mediumFile), mediumBuffer),
-    fs.writeFile(path.join(DEV_UPLOADS_DIR, thumbFile), thumbBuffer),
+  const [largeRes, mediumRes, thumbRes] = await Promise.all([
+    storage.upload({
+      key: largeKey,
+      body: largeBuffer,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000, immutable',
+    }),
+    storage.upload({
+      key: mediumKey,
+      body: mediumBuffer,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000, immutable',
+    }),
+    storage.upload({
+      key: thumbKey,
+      body: thumbBuffer,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000, immutable',
+    }),
   ]);
 
   return {
-    url: `/uploads/${mediumFile}`,
-    largeUrl: `/uploads/${largeFile}`,
-    mediumUrl: `/uploads/${mediumFile}`,
-    thumbUrl: `/uploads/${thumbFile}`,
-    isLocal: true,
+    url: mediumRes.url,
+    largeUrl: largeRes.url,
+    mediumUrl: mediumRes.url,
+    thumbUrl: thumbRes.url,
+    storageKey: mediumKey,
+    largeKey,
+    mediumKey,
+    thumbKey,
+    isLocal: storage instanceof LocalStorageAdapter,
   };
 }
 
 /**
- * Delete image file (local dev or Supabase)
+ * Delete image file(s) from active storage adapter.
  */
-export async function deleteImageFile(imageUrl) {
-  if (!imageUrl) return;
-  try {
-    if (imageUrl.startsWith('/uploads/')) {
-      const filename = path.basename(imageUrl);
-      const filePath = path.join(DEV_UPLOADS_DIR, filename);
-      if (existsSync(filePath)) {
-        await fs.unlink(filePath);
-      }
-    }
-  } catch (err) {
-    logger.error({ err, imageUrl }, 'Failed to delete image file');
+export async function deleteImageFile(keyOrUrl) {
+  if (!keyOrUrl) return false;
+  const storage = getStorageAdapter();
+  // If it's a URL or path, extract the key filename
+  let key = keyOrUrl;
+  if (key.includes('/')) {
+    key = path.basename(key);
   }
+  return await storage.delete(key);
+}
+
+/**
+ * Delete multiple image files from active storage adapter.
+ */
+export async function deleteImageFiles(keysOrUrls) {
+  if (!Array.isArray(keysOrUrls) || keysOrUrls.length === 0) return 0;
+  const storage = getStorageAdapter();
+  const keys = keysOrUrls.map((item) => (item.includes('/') ? path.basename(item) : item));
+  return await storage.deleteMany(keys);
 }

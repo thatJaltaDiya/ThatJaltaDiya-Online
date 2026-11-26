@@ -80,7 +80,8 @@ export function OrderHistory() {
   return (
     <div className="space-y-4">
       {orders.map(order => {
-        const canCancel = order.status === 'PENDING' || order.status === 'CONFIRMED';
+        const isWithin24Hours = (Date.now() - new Date(order.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
+        const canCancel = (order.status === 'PENDING' || order.status === 'CONFIRMED') && isWithin24Hours;
 
         return (
           <Card key={order.id} className="p-5 bg-white space-y-4">
@@ -191,25 +192,12 @@ export function OrderHistory() {
               </div>
             )}
 
-            {selectedOrder.giftMessage && (
-              <div className="p-3 rounded-xl border border-accent/30 bg-pink-50/50">
-                <span className="font-bold block text-accent mb-1">Gift Message:</span>
-                <p className="text-primary/80 italic">"{selectedOrder.giftMessage}"</p>
-              </div>
-            )}
-
             {/* Price breakdown */}
             <div className="pt-2 border-t border-border/10 space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-bold">₹{(selectedOrder.subtotal / 100).toFixed(0)}</span>
               </div>
-              {selectedOrder.discount > 0 && (
-                <div className="flex justify-between text-emerald-700">
-                  <span>Coupon Discount:</span>
-                  <span className="font-bold">-₹{(selectedOrder.discount / 100).toFixed(0)}</span>
-                </div>
-              )}
               <div className="flex justify-between">
                 <span>Shipping:</span>
                 <span className="font-bold">{selectedOrder.shippingFee === 0 ? 'FREE' : `₹${(selectedOrder.shippingFee / 100).toFixed(0)}`}</span>

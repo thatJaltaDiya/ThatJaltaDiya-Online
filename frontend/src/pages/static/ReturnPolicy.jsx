@@ -36,7 +36,7 @@ export function ReturnPolicy() {
 
           <h3 className="font-editorial text-lg font-bold text-primary">3. Non-Returnable Items</h3>
           <p>
-            For hygiene and safety reasons, burnt candles, customized gift notes, and sale items are non-returnable once opened and undamaged.
+            For hygiene and safety reasons, burnt candles and sale items are non-returnable once opened and undamaged.
           </p>
         </Card>
       </div>

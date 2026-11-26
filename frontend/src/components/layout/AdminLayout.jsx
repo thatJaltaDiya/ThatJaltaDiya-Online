@@ -5,15 +5,8 @@ import {
   Package,
   Layers,
   ShoppingBag,
-  Users,
-  Tag,
-  Boxes,
-  Settings,
-  Mail,
-  ShieldAlert,
   AlertTriangle,
   LogOut,
-  Flame,
   ArrowLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -46,12 +39,6 @@ export function AdminLayout() {
     { label: 'Products', path: '/admin/products', icon: Package },
     { label: 'Categories', path: '/admin/categories', icon: Layers },
     { label: 'Orders', path: '/admin/orders', icon: ShoppingBag },
-    { label: 'Customers', path: '/admin/customers', icon: Users },
-    { label: 'Coupons', path: '/admin/coupons', icon: Tag },
-    { label: 'Inventory Logs', path: '/admin/inventory', icon: Boxes },
-    { label: 'Contact Messages', path: '/admin/contact-messages', icon: Mail },
-    { label: 'Audit Trail', path: '/admin/audit', icon: ShieldAlert },
-    { label: 'Settings & Danger Zone', path: '/admin/settings', icon: Settings },
   ];
 
   return (
@@ -62,35 +49,29 @@ export function AdminLayout() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
             <span>
-              Demo products ({demoStatus.counts.products}) are visible on your store. Non-technical owner can replace or delete them anytime in Settings.
+              Demo products ({demoStatus.counts.products}) are visible on your store. You can add or replace products in the Products tab.
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              to="/admin/settings"
-              className="underline hover:text-accent font-extrabold"
-            >
-              Go to Danger Zone
-            </Link>
-            <button
-              onClick={() => setBannerDismissed(true)}
-              className="text-amber-800 hover:text-black font-extrabold px-1"
-            >
-              ✕
-            </button>
-          </div>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="text-amber-800 hover:text-black font-extrabold px-1"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {/* Admin Top Navigation */}
       <header className="bg-white border-b-2 border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-butter border-2 border-border flex items-center justify-center shadow-pop-sm">
-              <Flame className="w-5 h-5 text-accent fill-accent" />
-            </div>
+          <Link to="/admin" className="flex items-center gap-2.5">
+            <img
+              src="/logo.jpg"
+              alt="That Jalta Diya"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-border object-cover shadow-pop-sm flex-shrink-0"
+            />
             <div>
-              <span className="font-editorial text-xl font-extrabold text-primary block leading-none">
+              <span className="font-editorial text-lg sm:text-xl font-extrabold text-primary block leading-none">
                 Admin Console
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest text-primary/60">

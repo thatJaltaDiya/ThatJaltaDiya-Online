@@ -1,0 +1,11 @@
+# robots.txt for That Jalta Diya
+User-agent: *
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /account
+Disallow: /account/*
+Disallow: /checkout
+Disallow: /order-confirmation
+Allow: /
+
+Sitemap: https://thatjaltadiya.com/sitemap.xml

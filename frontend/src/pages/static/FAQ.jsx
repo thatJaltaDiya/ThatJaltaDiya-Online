@@ -18,10 +18,6 @@ export function FAQ() {
       a: "We pour 100% natural, ethically sourced soy wax blended with pure beeswax for sculptural rigidity. Our products contain zero paraffin, zero petroleum derivatives, and lead-free cotton wicks."
     },
     {
-      q: "Can I add a personalized gift message?",
-      a: "Yes! At checkout, there is a dedicated box for your gift note. We handwrite your message on a complimentary pastel stationery card and tuck it into the parcel with satin ribbon."
-    },
-    {
       q: "How long does delivery take?",
       a: "Because each candle creation is handcrafted, orders are dispatched within 2-3 business days. Delivery takes 3-5 days across metro cities in India and 4-7 days for other regions."
     },

@@ -8,9 +8,9 @@
   --color-surface: #FFF5F7;
   --color-surface-card: #FFFFFF;
   --color-primary: #2D0C1E;
-  --color-accent: #FF3366;
-  --color-accent-hover: #E02456;
-  --color-accent-muted: rgba(255, 51, 102, 0.12);
+  --color-accent: #E01E5A;
+  --color-accent-hover: #C2184B;
+  --color-accent-muted: rgba(224, 30, 90, 0.12);
   --color-sage: #D8E2DC;
   --color-sage-dark: #4A6B5D;
   --color-butter: #FFE8A3;
@@ -36,8 +36,12 @@
 
 /* Accessibility: Touch targets & visible focus */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
+  outline: 2px solid rgba(45, 12, 30, 0.35);
+  outline-offset: 2px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
 }
 
 /* Button & Badge Utilities */

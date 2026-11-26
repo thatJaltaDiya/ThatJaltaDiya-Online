@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Package, User, MapPin, Heart, ShieldCheck, Mail } from 'lucide-react';
+import { Package, User, MapPin, Heart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
 
@@ -30,20 +30,6 @@ export function AccountLayout() {
               Hello, {user?.name || 'Candle Lover'}! ✨
             </h1>
             <p className="text-xs text-primary/70 font-mono mt-1">{user?.email}</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {user?.isEmailVerified ? (
-              <Badge variant="sage">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1" />
-                <span>Verified Account</span>
-              </Badge>
-            ) : (
-              <Badge variant="accent">
-                <Mail className="w-3.5 h-3.5 mr-1" />
-                <span>Email Unverified</span>
-              </Badge>
-            )}
           </div>
         </div>
 

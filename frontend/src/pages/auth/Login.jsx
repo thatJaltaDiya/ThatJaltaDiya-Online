@@ -25,13 +25,20 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password, turnstileToken);
+      const authData = await login(email, password, turnstileToken);
       showToast({ type: 'success', message: 'Welcome back to That Jalta Diya! ✨' });
-      navigate(redirectUrl);
+      if (authData?.user?.role === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate(redirectUrl);
+      }
     } catch (err) {
+      const message = err.details?.length
+        ? err.details.map(d => d.message).join('; ')
+        : (err.message || 'Invalid email or password.');
       showToast({
         type: 'error',
-        message: err.message || 'Invalid email or password.',
+        message,
       });
     } finally {
       setLoading(false);
@@ -46,11 +53,13 @@ export function Login() {
 
       <div className="max-w-md mx-auto px-4 py-16">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-full bg-butter border-2 border-border flex items-center justify-center mx-auto mb-3 shadow-pop-sm">
-            <Flame className="w-6 h-6 text-accent fill-accent" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="That Jalta Diya"
+            className="w-14 h-14 rounded-full border-2 border-border object-cover shadow-pop-sm mx-auto mb-3"
+          />
           <Badge variant="accent" tilt={true} className="mb-2">WELCOME BACK</Badge>
-          <h1 className="font-editorial text-3xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
             Sign In To Your Account
           </h1>
           <p className="text-xs text-primary/70 mt-1">Access your saved addresses, order tracking, and wishlist.</p>

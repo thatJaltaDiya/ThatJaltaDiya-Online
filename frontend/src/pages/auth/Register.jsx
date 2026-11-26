@@ -39,14 +39,24 @@ export function Register() {
 
     setLoading(true);
     try {
-      const res = await register({
-        ...form,
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
         turnstileToken,
-      });
+      };
+      if (form.phone && form.phone.trim()) {
+        payload.phone = form.phone.trim();
+      }
+
+      const res = await register(payload);
       setRegistered(true);
       showToast({ type: 'success', message: 'Account created! Verification link sent to your email.' });
     } catch (err) {
-      showToast({ type: 'error', message: err.message || 'Registration failed.' });
+      const message = err.details?.length
+        ? err.details.map(d => d.message).join('; ')
+        : (err.message || 'Registration failed.');
+      showToast({ type: 'error', message });
     } finally {
       setLoading(false);
     }
@@ -77,11 +87,13 @@ export function Register() {
 
       <div className="max-w-md mx-auto px-4 py-14">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-full bg-butter border-2 border-border flex items-center justify-center mx-auto mb-3 shadow-pop-sm">
-            <Flame className="w-6 h-6 text-accent fill-accent" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="That Jalta Diya"
+            className="w-14 h-14 rounded-full border-2 border-border object-cover shadow-pop-sm mx-auto mb-3"
+          />
           <Badge variant="sage" tilt={true} className="mb-2">JOIN OUR COMMUNITY</Badge>
-          <h1 className="font-editorial text-3xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
             Create Customer Account
           </h1>
         </div>

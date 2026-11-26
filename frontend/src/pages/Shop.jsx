@@ -26,8 +26,6 @@ export function Shop() {
   const searchQuery = searchParams.get('search') || '';
   const currentSort = searchParams.get('sort') || 'newest';
   const currentPage = Number(searchParams.get('page')) || 1;
-  const minPriceParam = searchParams.get('minPrice') || '';
-  const maxPriceParam = searchParams.get('maxPrice') || '';
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
@@ -58,17 +56,17 @@ export function Shop() {
       setLoading(true);
       try {
         const query = searchParams.toString();
-        const [prodRes, catRes] = await Promise.all([
+        const [prodResult, catResult] = await Promise.allSettled([
           api.get(`/products?${query}&limit=12`),
           categories.length === 0 ? api.get('/categories') : Promise.resolve(null),
         ]);
 
-        if (prodRes.success) {
-          setProducts(prodRes.data);
-          if (prodRes.meta) setPagination(prodRes.meta);
+        if (prodResult.status === 'fulfilled' && prodResult.value?.success) {
+          setProducts(prodResult.value.data);
+          if (prodResult.value.meta) setPagination(prodResult.value.meta);
         }
-        if (catRes && catRes.success) {
-          setCategories(catRes.data);
+        if (catResult.status === 'fulfilled' && catResult.value?.success) {
+          setCategories(catResult.value.data);
         }
       } catch {
         // ignore
@@ -101,16 +99,16 @@ export function Shop() {
         </div>
 
         {/* Search, Filter & Sort Control Strip */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-8 bg-surface-card p-4 rounded-2xl border-2 border-border shadow-pop-sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-8 bg-white p-3.5 sm:p-4 rounded-2xl border border-border/20 shadow-sm">
           {/* Search bar with debounce */}
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-primary/50 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-primary/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               placeholder="Search candles, bouquets, hampers..."
-              className="w-full pl-10 pr-4 py-2 min-h-[44px] rounded-full border-2 border-border/60 bg-white text-sm font-medium focus:border-accent outline-none"
+              className="w-full pl-10 pr-4 py-2 min-h-[42px] rounded-full border border-border/30 bg-surface/30 hover:bg-white focus:bg-white text-sm font-medium focus:border-primary/40 focus:ring-1 focus:ring-primary/10 outline-none transition-all"
             />
             {localSearch && (
               <button
@@ -118,7 +116,7 @@ export function Shop() {
                   setLocalSearch('');
                   updateFilter({ search: undefined, page: 1 });
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/50 hover:text-primary p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary p-1"
                 aria-label="Clear search"
               >
                 <X className="w-4 h-4" />
@@ -130,18 +128,20 @@ export function Shop() {
           <div className="flex items-center gap-3 justify-between md:justify-end">
             <button
               onClick={() => setFilterDrawerOpen(!filterDrawerOpen)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-full border-2 border-border bg-butter text-xs font-bold min-h-[44px]"
+              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-full border border-border/30 bg-white hover:bg-surface text-xs font-bold text-primary min-h-[42px] shadow-sm transition-colors"
             >
               <Filter className="w-4 h-4" />
               <span>Filters</span>
             </button>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary/70 hidden sm:inline">Sort:</span>
+              <label htmlFor="shop-sort-select" className="text-xs font-bold uppercase tracking-wider text-primary/60 hidden sm:inline">Sort:</label>
               <select
+                id="shop-sort-select"
+                aria-label="Sort products by"
                 value={currentSort}
                 onChange={(e) => updateFilter({ sort: e.target.value, page: 1 })}
-                className="px-3.5 py-2 min-h-[44px] rounded-full border-2 border-border bg-white text-xs font-bold text-primary focus:border-accent outline-none cursor-pointer"
+                className="px-3.5 py-2 min-h-[42px] bg-white rounded-full border border-border/30 text-xs font-bold text-primary focus:border-primary/40 focus:ring-1 focus:ring-primary/10 outline-none shadow-sm cursor-pointer"
               >
                 <option value="newest">Newest Arrivals</option>
                 <option value="popularity">Most Popular / Bestsellers</option>
@@ -156,7 +156,7 @@ export function Shop() {
         {/* Main Content Layout: Sidebar + Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
           {/* Desktop Filter Sidebar */}
-          <aside className="hidden lg:block space-y-6 bg-surface-card p-6 rounded-2xl border-2 border-border shadow-pop-sm">
+          <aside className="hidden lg:block space-y-6 bg-white p-6 rounded-2xl border border-border/20 shadow-sm">
             {/* Category Pills */}
             <div>
               <h3 className="font-editorial text-base font-bold text-primary mb-3">Categories</h3>
@@ -165,8 +165,8 @@ export function Shop() {
                   onClick={() => updateFilter({ category: undefined, page: 1 })}
                   className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                     !selectedCategory
-                      ? 'bg-primary text-white border-2 border-border shadow-pop-sm'
-                      : 'text-primary hover:bg-surface border-2 border-transparent'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-primary/80 hover:text-primary hover:bg-surface/60'
                   }`}
                 >
                   All Products
@@ -177,8 +177,8 @@ export function Shop() {
                     onClick={() => updateFilter({ category: cat.slug, page: 1 })}
                     className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
                       selectedCategory === cat.slug
-                        ? 'bg-primary text-white border-2 border-border shadow-pop-sm'
-                        : 'text-primary hover:bg-surface border-2 border-transparent'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-primary/80 hover:text-primary hover:bg-surface/60'
                     }`}
                   >
                     <span>{cat.name}</span>
@@ -188,40 +188,12 @@ export function Shop() {
               </div>
             </div>
 
-            {/* Price Filter in INR */}
-            <div className="pt-4 border-t border-border/10">
-              <h3 className="font-editorial text-base font-bold text-primary mb-3">Price Range (₹)</h3>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={minPriceParam ? Number(minPriceParam) / 100 : ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) * 100 : undefined;
-                    updateFilter({ minPrice: val, page: 1 });
-                  }}
-                  className="w-full px-3 py-1.5 rounded-lg border-2 border-border bg-white text-xs font-bold focus:border-accent outline-none"
-                />
-                <span className="text-xs font-bold text-primary/40">-</span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={maxPriceParam ? Number(maxPriceParam) / 100 : ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) * 100 : undefined;
-                    updateFilter({ maxPrice: val, page: 1 });
-                  }}
-                  className="w-full px-3 py-1.5 rounded-lg border-2 border-border bg-white text-xs font-bold focus:border-accent outline-none"
-                />
-              </div>
-            </div>
-
             {/* Clear All Filters */}
-            {(selectedCategory || searchQuery || minPriceParam || maxPriceParam) && (
+            {(selectedCategory || searchQuery) && (
               <div className="pt-4 border-t border-border/10">
                 <button
                   onClick={() => setSearchParams({})}
-                  className="w-full py-2 rounded-full border-2 border-dashed border-red-400 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full py-2 rounded-full border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50/60 transition-colors shadow-sm"
                 >
                   Reset All Filters
                 </button>
@@ -257,9 +229,12 @@ export function Shop() {
                   const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
 
                   return (
-                    <Card key={product.id} className="p-3 flex flex-col justify-between group">
+                    <div
+                      key={product.id}
+                      className="bg-white rounded-2xl p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+                    >
                       <div className="relative">
-                        <Link to={`/product/${product.slug}`} className="block overflow-hidden rounded-xl border-2 border-border bg-white aspect-square relative">
+                        <Link to={`/product/${product.slug}`} className="block overflow-hidden rounded-xl bg-surface/40 aspect-square relative">
                           <img
                             src={primaryImg}
                             alt={product.name}
@@ -273,67 +248,60 @@ export function Shop() {
 
                         <button
                           onClick={() => toggleWishlist(product.id)}
-                          className="absolute top-2.5 right-2.5 p-2 rounded-full bg-white/90 border border-border/20 shadow-sm hover:scale-110 active:scale-95 transition-all"
+                          className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/95 shadow-sm hover:scale-110 active:scale-95 flex items-center justify-center transition-all border border-border/10"
                           aria-label="Wishlist item"
                         >
                           <Heart
-                            className={`w-4 h-4 ${
-                              isItemWishlisted ? 'fill-accent text-accent' : 'text-primary'
+                            className={`w-4 h-4 transition-colors ${
+                              isItemWishlisted ? 'fill-accent text-accent' : 'text-primary/70 hover:text-primary'
                             }`}
                           />
                         </button>
 
-                        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
-                          {product.stock <= 0 ? (
-                            <Badge variant="dark" className="text-[9px] px-2 py-0.5 bg-gray-900">OUT OF STOCK</Badge>
-                          ) : product.stock <= 5 ? (
-                            <Badge variant="accent" className="text-[9px] px-2 py-0.5">ONLY {product.stock} LEFT</Badge>
-                          ) : null}
-                          {hasDiscount && (
-                            <Badge variant="butter" className="text-[9px] px-2 py-0.5">
-                              {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
-                            </Badge>
-                          )}
-                        </div>
+                        {product.stock <= 0 && (
+                          <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 pointer-events-none">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-900 text-white shadow-sm">OUT OF STOCK</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 flex-1 flex flex-col justify-between">
                         <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary/60 block truncate">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary/50 block truncate">
                             {product.category?.name || 'Gifts'}
                           </span>
                           <Link to={`/product/${product.slug}`} className="block">
-                            <h3 className="font-editorial text-sm sm:text-base font-bold text-primary group-hover:text-accent transition-colors line-clamp-1 mt-0.5">
+                            <h3 className="font-sans text-sm sm:text-base font-bold text-primary group-hover:text-accent transition-colors line-clamp-1 mt-0.5">
                               {product.name}
                             </h3>
                           </Link>
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between pt-2 border-t border-border/10">
+                        <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-border/10">
                           <div>
-                            <span className="font-editorial text-base sm:text-lg font-extrabold text-primary">
+                            <span className="font-editorial text-base sm:text-lg font-black text-primary">
                               ₹{(product.price / 100).toFixed(0)}
                             </span>
                             {hasDiscount && (
-                              <span className="text-xs line-through text-primary/40 ml-2">
+                              <span className="text-xs line-through text-primary/40 ml-1.5 font-medium">
                                 ₹{(product.compareAtPrice / 100).toFixed(0)}
                               </span>
                             )}
                           </div>
 
-                          <Button
-                            size="sm"
-                            variant="secondary"
+                          <button
+                            type="button"
                             onClick={() => addToCart(product.id, null, 1)}
                             disabled={product.stock <= 0}
-                            className="text-xs px-3 py-1.5"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            aria-label={`Add ${product.name} to bag`}
                           >
-                            <ShoppingBag className="w-3.5 h-3.5 sm:mr-1" />
-                            <span className="hidden sm:inline">Add</span>
-                          </Button>
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>

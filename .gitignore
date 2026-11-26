@@ -4,24 +4,27 @@ node_modules/
 
 # Environment files
 .env
-.env.local
-.env.*.local
+.env.*
 *.env
-server/.env
-client/.env
-backend/.env
-frontend/.env
+*/.env
+*/.env.*
+!.env.example
 !*.env.example
 !*.env.development
+
+# Vercel
+.vercel/
+*/.vercel/
 
 # Build outputs
 dist/
 build/
 */dist/
 
-# Uploads and temporary assets
+# Uploads, reports and temporary assets
 uploads-dev/
 */uploads-dev/
+lighthouse-*.json
 *.log
 
 # Testing & coverage
