@@ -1,3 +1,5 @@
-import { app } from '../src/app.js';
+console.log("Vercel Node version:", process.version);
+
+const { app } = await import("../src/app.js");
 
 export default app;
