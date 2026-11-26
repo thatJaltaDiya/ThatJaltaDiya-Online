@@ -7,13 +7,14 @@
  */
 
 let inMemoryAccessToken = null;
+let inMemoryCsrfToken = null;
 let isRefreshing = false;
 let failedQueue = [];
 
 function getCsrfTokenFromCookie() {
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') return inMemoryCsrfToken;
   const match = document.cookie.match(/(?:^|;\s*)csrfToken=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  return (match ? decodeURIComponent(match[1]) : null) || inMemoryCsrfToken;
 }
 
 const processQueue = (error, token = null) => {
@@ -32,8 +33,12 @@ export const api = {
   setAccessToken: (token) => {
     inMemoryAccessToken = token;
   },
+  setCsrfToken: (token) => {
+    inMemoryCsrfToken = token || null;
+  },
   clearAccessToken: () => {
     inMemoryAccessToken = null;
+    inMemoryCsrfToken = null;
   },
 
   async request(endpoint, options = {}) {
@@ -60,6 +65,7 @@ export const api = {
 
     const config = {
       ...options,
+      credentials: 'include',
       headers,
     };
 
@@ -80,18 +86,28 @@ export const api = {
         isRefreshing = true;
 
         try {
+          const refreshHeaders = {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          };
+          const refreshCsrf = getCsrfTokenFromCookie();
+          if (refreshCsrf) {
+            refreshHeaders['X-CSRF-Token'] = refreshCsrf;
+          }
+
           const refreshRes = await fetch('/api/v1/auth/refresh', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest',
-            },
+            credentials: 'include',
+            headers: refreshHeaders,
           });
 
           if (refreshRes.ok) {
             const data = await refreshRes.json();
             const newToken = data.data.accessToken;
             api.setAccessToken(newToken);
+            if (data.data.csrfToken) {
+              api.setCsrfToken(data.data.csrfToken);
+            }
             processQueue(null, newToken);
 
             // Replay original request

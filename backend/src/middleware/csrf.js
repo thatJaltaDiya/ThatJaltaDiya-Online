@@ -12,8 +12,11 @@ export function csrfProtection(req, res, next) {
     return next();
   }
 
-  // Only enforce when client is presenting auth cookie (signed or unsigned)
-  const hasRefreshToken = Boolean(req.cookies?.refreshToken || req.signedCookies?.refreshToken);
+  // Only enforce when client is presenting a non-empty auth cookie
+  const rawRefreshToken = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
+  const hasRefreshToken = Boolean(
+    rawRefreshToken && rawRefreshToken !== 'undefined' && rawRefreshToken !== 'null'
+  );
   if (!hasRefreshToken) {
     return next();
   }

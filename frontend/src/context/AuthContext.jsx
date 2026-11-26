@@ -30,6 +30,9 @@ export function AuthProvider({ children }) {
 
         if (res.success && res.data?.user) {
           api.setAccessToken(res.data.accessToken);
+          if (res.data.csrfToken) {
+            api.setCsrfToken(res.data.csrfToken);
+          }
           setUser(res.data.user);
         }
       } catch {
@@ -50,14 +53,28 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = useCallback(async (email, password, turnstileToken) => {
-    const res = await api.post('/auth/login', { email, password, turnstileToken });
+  const completeSession = useCallback((userData, accessToken, csrfToken = null) => {
+    api.setAccessToken(accessToken);
+    if (csrfToken) {
+      api.setCsrfToken(csrfToken);
+    }
+    setUser(userData);
+  }, []);
+
+  const login = useCallback(async (email, password, turnstileToken, extra = {}) => {
+    const res = await api.post('/auth/login', { email, password, turnstileToken, ...extra });
     if (res.success) {
-      api.setAccessToken(res.data.accessToken);
-      setUser(res.data.user);
+      if (res.data.twoFactorRequired) {
+        return res.data;
+      }
+      if (res.data.twoFactorEnrollmentRequired) {
+        api.setAccessToken(res.data.enrollmentToken);
+        return res.data;
+      }
+      completeSession(res.data.user, res.data.accessToken, res.data.csrfToken);
       return res.data;
     }
-  }, []);
+  }, [completeSession]);
 
   const register = useCallback(async (data) => {
     const res = await api.post('/auth/register', data);
@@ -85,6 +102,7 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!user,
         isAdmin: user?.role === 'ADMIN',
         login,
+        completeSession,
         register,
         logout,
         updateUser,

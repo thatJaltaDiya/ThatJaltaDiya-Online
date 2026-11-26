@@ -645,14 +645,52 @@ export async function enable2FA(req, res, next) {
       req,
     });
 
-    const { signAccessToken } = await import('../../utils/tokens.js');
+    const crypto = await import('crypto');
+    const { signAccessToken, signRefreshToken, hashToken: hashRefreshToken } = await import('../../utils/tokens.js');
+    const { getRefreshCookieOptions, getCsrfCookieOptions } = await import('../auth.controller.js');
+
     const accessToken = signAccessToken({
       sub: req.user.id,
       email: req.user.email,
       role: 'ADMIN',
     });
 
-    return apiSuccess(res, { twoFactorEnabled: true, token: accessToken }, 'Two-factor authentication successfully enabled.');
+    const tokenFamily = crypto.randomUUID();
+    const refreshTokenString = signRefreshToken({
+      sub: req.user.id,
+      family: tokenFamily,
+    });
+
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: hashRefreshToken(refreshTokenString),
+        userId: req.user.id,
+        family: tokenFamily,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie('refreshToken', refreshTokenString, getRefreshCookieOptions());
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions());
+
+    return apiSuccess(
+      res,
+      {
+        twoFactorEnabled: true,
+        token: accessToken,
+        accessToken,
+        csrfToken,
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          role: req.user.role,
+          isEmailVerified: req.user.isEmailVerified,
+        },
+      },
+      'Two-factor authentication successfully enabled.'
+    );
   } catch (error) {
     next(error);
   }

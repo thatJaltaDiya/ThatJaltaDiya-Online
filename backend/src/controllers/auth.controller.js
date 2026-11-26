@@ -46,6 +46,19 @@ export function getClearCookieOptions() {
   return options;
 }
 
+export function getCsrfClearCookieOptions() {
+  const options = {
+    httpOnly: false,
+    secure: env.NODE_ENV === 'production',
+    sameSite: env.COOKIE_SAMESITE || (env.NODE_ENV === 'production' ? 'strict' : 'lax'),
+    path: '/',
+  };
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+  return options;
+}
+
 export async function register(req, res, next) {
   try {
     const user = await authService.registerCustomer(req.body);
@@ -71,7 +84,25 @@ export async function login(req, res, next) {
       userAgent,
     });
 
+    if (result.twoFactorEnrollmentRequired) {
+      res.clearCookie('refreshToken', getClearCookieOptions());
+      res.clearCookie('csrfToken', getCsrfClearCookieOptions());
+      return apiSuccess(
+        res,
+        {
+          twoFactorEnrollmentRequired: true,
+          enrollmentToken: result.enrollmentToken,
+          token: result.token,
+          expiresIn: result.expiresIn,
+          user: result.user,
+        },
+        'Two-factor authentication setup required.'
+      );
+    }
+
     if (result.twoFactorRequired) {
+      res.clearCookie('refreshToken', getClearCookieOptions());
+      res.clearCookie('csrfToken', getCsrfClearCookieOptions());
       return apiSuccess(
         res,
         {
@@ -83,8 +114,10 @@ export async function login(req, res, next) {
     }
 
     const csrfToken = crypto.randomBytes(32).toString('hex');
-    res.cookie('refreshToken', result.refreshTokenString, getRefreshCookieOptions());
-    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions());
+    if (result.refreshTokenString) {
+      res.cookie('refreshToken', result.refreshTokenString, getRefreshCookieOptions());
+      res.cookie('csrfToken', csrfToken, getCsrfCookieOptions());
+    }
 
     return apiSuccess(
       res,
@@ -102,8 +135,11 @@ export async function login(req, res, next) {
 
 export async function refresh(req, res, next) {
   try {
-    const tokenString = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
+    const rawToken = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
+    const tokenString = rawToken && rawToken !== 'undefined' && rawToken !== 'null' ? rawToken : null;
     if (!tokenString) {
+      res.clearCookie('refreshToken', getClearCookieOptions());
+      res.clearCookie('csrfToken', getCsrfClearCookieOptions());
       return apiError(res, 'Session expired. Please sign in.', 401, 'TOKEN_MISSING');
     }
 
@@ -124,19 +160,20 @@ export async function refresh(req, res, next) {
     );
   } catch (error) {
     res.clearCookie('refreshToken', getClearCookieOptions());
-    res.clearCookie('csrfToken', { path: '/' });
+    res.clearCookie('csrfToken', getCsrfClearCookieOptions());
     next(error);
   }
 }
 
 export async function logout(req, res, next) {
   try {
-    const tokenString = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
+    const rawToken = req.cookies?.refreshToken || req.signedCookies?.refreshToken;
+    const tokenString = rawToken && rawToken !== 'undefined' && rawToken !== 'null' ? rawToken : null;
     if (tokenString) {
       await authService.logoutUser(tokenString);
     }
     res.clearCookie('refreshToken', getClearCookieOptions());
-    res.clearCookie('csrfToken', { path: '/' });
+    res.clearCookie('csrfToken', getCsrfClearCookieOptions());
     return apiSuccess(res, null, 'Logged out successfully');
   } catch (error) {
     next(error);
