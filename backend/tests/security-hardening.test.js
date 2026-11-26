@@ -10,7 +10,6 @@ import { env, resolveCookieSameSite } from '../src/config/env.js';
 import { getClientIp, isCloudflareIp, getIpv6Subnet64, getIpSubnetKey } from '../src/utils/ip.js';
 import { verifyTurnstileToken } from '../src/middleware/turnstile.js';
 import * as otpService from '../src/services/otp.service.js';
-import * as twoFactorService from '../src/services/twoFactor.service.js';
 import { validateImageMagicBytes } from '../src/middleware/upload.js';
 import { signAccessToken, verifyAccessToken, hashToken } from '../src/utils/tokens.js';
 import { hashPassword } from '../src/utils/password.js';
@@ -429,84 +428,6 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       expect(decoded.sub).toBe('u123');
       expect(decoded.aud).toBe('that-jalta-diya-users');
       expect(decoded.iss).toBe('that-jalta-diya');
-    });
-  });
-
-  // ---------------------------------------------------------
-  // 9. Admin 2FA: Enrollment, TOTP, Single-Use Backup Codes, Progressive Delay
-  // ---------------------------------------------------------
-  describe('9. Admin 2FA Hardening & Progressive Delay', () => {
-    let adminUser;
-    let enrollmentData;
-
-    beforeAll(async () => {
-      adminUser = await prisma.user.create({
-        data: {
-          email: `admin_2fa_${Date.now()}@thatjaltadiya.com`,
-          name: 'Super Admin',
-          passwordHash: await hashPassword('AdminMaster1234!'),
-          role: 'ADMIN',
-          isEmailVerified: true,
-        },
-      });
-      cleanupUserIds.push(adminUser.id);
-    });
-
-    it('Generates TOTP secret, QR code URI, and exactly 8 hashed single-use backup codes', async () => {
-      enrollmentData = await twoFactorService.generateTwoFactorEnrollment(adminUser.id, adminUser.email);
-
-      expect(enrollmentData.secret).toBeDefined();
-      expect(enrollmentData.otpauthUrl).toContain('otpauth://totp/');
-      expect(enrollmentData.qrCodeDataUrl).toContain('data:image/png;base64');
-      expect(enrollmentData.backupCodes).toHaveLength(8);
-
-      // Verify backup codes format (XXXX-XXXX)
-      enrollmentData.backupCodes.forEach(code => {
-        expect(code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-      });
-    });
-
-    it('Confirms 2FA enrollment with valid TOTP code', async () => {
-      const validOtp = twoFactorService.generateTotpCode(enrollmentData.secret);
-      const confirmed = await twoFactorService.confirmTwoFactorEnrollment(
-        adminUser.id,
-        enrollmentData.secret,
-        validOtp,
-        enrollmentData.backupCodes
-      );
-
-      expect(confirmed).toBe(true);
-
-      const dbUser = await prisma.user.findUnique({ where: { id: adminUser.id } });
-      expect(dbUser.twoFactorEnabled).toBe(true);
-      expect(dbUser.twoFactorSecret).toBe(enrollmentData.secret);
-      expect(dbUser.twoFactorBackupCodes).toHaveLength(8);
-    });
-
-    it('Consumes single-use backup code and prevents reuse', async () => {
-      const backupCodeToUse = enrollmentData.backupCodes[0];
-
-      // First use: Valid
-      const verifyRes = await twoFactorService.verifyAdmin2FA(adminUser.id, backupCodeToUse);
-      expect(verifyRes.valid).toBe(true);
-      expect(verifyRes.isBackupCode).toBe(true);
-
-      // DB should now have 7 backup codes remaining
-      const dbUser = await prisma.user.findUnique({ where: { id: adminUser.id } });
-      expect(dbUser.twoFactorBackupCodes).toHaveLength(7);
-
-      // Second use of the EXACT same backup code must fail
-      const reuseRes = await twoFactorService.verifyAdmin2FA(adminUser.id, backupCodeToUse);
-      expect(reuseRes.valid).toBe(false);
-    });
-
-    it('Calculates progressive delay on failed login attempts without hard lockout', () => {
-      expect(twoFactorService.calculateProgressiveDelay(0)).toBe(0);
-      expect(twoFactorService.calculateProgressiveDelay(1)).toBe(1000);
-      expect(twoFactorService.calculateProgressiveDelay(2)).toBe(2000);
-      expect(twoFactorService.calculateProgressiveDelay(3)).toBe(4000);
-      expect(twoFactorService.calculateProgressiveDelay(4)).toBe(8000);
-      expect(twoFactorService.calculateProgressiveDelay(5)).toBe(16000);
     });
   });
 
@@ -1286,94 +1207,6 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
 
       const result = createOrderSchema.safeParse(invalidSnapshotPayload);
       expect(result.success).toBe(false);
-    });
-
-    // 15. Admin 2FA first login flow with limited enrollment session + CLI recovery test
-    it('Issues limited enrollment session for unenrolled admin in production, blocks full routes, and recovers via CLI', async () => {
-      const adminEmail = `admin_first_${Date.now()}@thatjaltadiya.com`;
-      const adminUser = await prisma.user.create({
-        data: {
-          email: adminEmail,
-          name: 'First Time Admin',
-          passwordHash: await hashPassword('AdminPass123!'),
-          role: 'ADMIN',
-          twoFactorEnabled: false,
-        },
-      });
-      cleanupUserIds.push(adminUser.id);
-
-      const originalEnv = process.env.NODE_ENV;
-      try {
-        process.env.NODE_ENV = 'production';
-
-        // 1. First admin login with valid password returns limited enrollment session
-        const authResult = await authenticateUser({ email: adminEmail, password: 'AdminPass123!' });
-        expect(authResult.twoFactorEnrollmentRequired).toBe(true);
-        expect(authResult.enrollmentToken).toBeDefined();
-
-        const enrollmentToken = authResult.enrollmentToken;
-        const decoded = verifyAccessToken(enrollmentToken);
-        expect(decoded.scope).toBe('2FA_ENROLLMENT_ONLY');
-
-        // 2. Full admin routes are BLOCKED with limited enrollment session
-        const dashRes = await request(app)
-          .get('/api/v1/admin/dashboard')
-          .set('Authorization', `Bearer ${enrollmentToken}`);
-        expect(dashRes.status).toBe(403);
-        expect(dashRes.body.errorCode).toBe('ADMIN_2FA_ENROLLMENT_REQUIRED');
-
-        // 3. Limited enrollment session CAN access 2FA setup
-        const setupRes = await request(app)
-          .get('/api/v1/admin/2fa/setup')
-          .set('Authorization', `Bearer ${enrollmentToken}`);
-        expect(setupRes.status).toBe(200);
-        expect(setupRes.body.data.secret).toBeDefined();
-        const secret = setupRes.body.data.secret;
-        const plainBackupCodes = setupRes.body.data.plainBackupCodes;
-
-        // 4. Limited enrollment session confirms TOTP and gets full admin access token
-        const totpCode = twoFactorService.generateTotpCode(secret);
-        const enableRes = await request(app)
-          .post('/api/v1/admin/2fa/enable')
-          .set('Authorization', `Bearer ${enrollmentToken}`)
-          .send({ secret, token: totpCode, plainBackupCodes });
-        expect(enableRes.status).toBe(200);
-        expect(enableRes.body.data.twoFactorEnabled).toBe(true);
-        expect(enableRes.body.data.token).toBeDefined();
-
-        const fullToken = enableRes.body.data.token;
-        const fullDecoded = verifyAccessToken(fullToken);
-        expect(fullDecoded.scope).toBeUndefined();
-
-        // 5. Full session can now access admin dashboard
-        const fullDashRes = await request(app)
-          .get('/api/v1/admin/dashboard')
-          .set('Authorization', `Bearer ${fullToken}`);
-        expect(fullDashRes.status).toBe(200);
-
-        // 6. Test CLI recovery (npm run reset-admin-2fa)
-        const resetScriptPath = path.join(__dirname, '../scripts/reset-admin-2fa.js');
-        await new Promise((resolve, reject) => {
-          const proc = spawn('node', [resetScriptPath], {
-            env: { ...process.env, NODE_ENV: 'test', ADMIN_EMAIL: adminEmail },
-          });
-          proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`reset-admin-2fa CLI exited with code ${code}`));
-          });
-        });
-
-        const resetAdmin = await prisma.user.findUnique({ where: { id: adminUser.id } });
-        expect(resetAdmin.twoFactorEnabled).toBe(false);
-        expect(resetAdmin.twoFactorSecret).toBeNull();
-
-        const recoveryAudit = await prisma.auditLog.findFirst({
-          where: { targetId: adminUser.id, action: 'ADMIN_2FA_RESET_CLI' },
-        });
-        expect(recoveryAudit).toBeDefined();
-      } finally {
-        process.env.NODE_ENV = originalEnv;
-      }
     });
 
     // 16. Order number retry wraps the WHOLE transaction on collision

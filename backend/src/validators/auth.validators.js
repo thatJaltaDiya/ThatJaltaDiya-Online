@@ -31,8 +31,6 @@ export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
   password: z.string().min(1, 'Password is required').max(128),
   turnstileToken: z.string().optional(),
-  totpCode: z.string().optional(),
-  backupCode: z.string().optional(),
 }).strict();
 
 export const forgotPasswordSchema = z.object({

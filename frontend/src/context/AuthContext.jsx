@@ -61,16 +61,9 @@ export function AuthProvider({ children }) {
     setUser(userData);
   }, []);
 
-  const login = useCallback(async (email, password, turnstileToken, extra = {}) => {
-    const res = await api.post('/auth/login', { email, password, turnstileToken, ...extra });
+  const login = useCallback(async (email, password, turnstileToken) => {
+    const res = await api.post('/auth/login', { email, password, turnstileToken });
     if (res.success) {
-      if (res.data.twoFactorRequired) {
-        return res.data;
-      }
-      if (res.data.twoFactorEnrollmentRequired) {
-        api.setAccessToken(res.data.enrollmentToken);
-        return res.data;
-      }
       completeSession(res.data.user, res.data.accessToken, res.data.csrfToken);
       return res.data;
     }

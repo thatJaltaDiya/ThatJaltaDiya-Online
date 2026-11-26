@@ -9,8 +9,6 @@ const SENSITIVE_KEYS = new Set([
   'accesstoken',
   'token',
   'secret',
-  'totpcode',
-  'backupcode',
   'otpcode',
   'cardnumber',
   'cvv',

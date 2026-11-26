@@ -65,7 +65,6 @@ const envSchema = z.object({
   // Admin Credentials & Settings
   ADMIN_EMAIL: z.string().default('admin@thatjaltadiya.com'),
   ADMIN_PASSWORD: z.string().default('Admin@ThatJaltaDiya2026!'),
-  ADMIN_2FA_APP_NAME: z.string().default('That Jalta Diya'),
 
   // Observability
   SENTRY_DSN: z.string().optional().default(''),

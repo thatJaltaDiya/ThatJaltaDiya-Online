@@ -88,7 +88,7 @@ export async function registerCustomer({ email, password, name, phone }) {
 /**
  * Login user with rate limiting and progressive lockout protection
  */
-export async function authenticateUser({ email, password, totpCode, backupCode, ipAddress, userAgent }) {
+export async function authenticateUser({ email, password, ipAddress, userAgent }) {
   const normalizedEmail = email.trim().toLowerCase();
   let user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
@@ -219,84 +219,6 @@ export async function authenticateUser({ email, password, totpCode, backupCode, 
     error.statusCode = 403;
     error.errorCode = 'EMAIL_NOT_VERIFIED';
     throw error;
-  }
-
-  // Handle Admin 2FA Verification
-  if (user.role === 'ADMIN') {
-    if (!user.twoFactorEnabled && (env.NODE_ENV === 'production' || process.env.NODE_ENV === 'production')) {
-      // Issue a limited enrollment-only session (10m expiry) that can only access 2FA setup & enable
-      const enrollmentToken = signAccessToken(
-        { sub: user.id, email: user.email, role: 'ADMIN', scope: '2FA_ENROLLMENT_ONLY' },
-        '10m'
-      );
-      return {
-        twoFactorEnrollmentRequired: true,
-        enrollmentToken,
-        token: enrollmentToken,
-        expiresIn: 600,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      };
-    }
-
-    if (user.twoFactorEnabled) {
-      const { verify2FACode, verifyAndConsumeBackupCode } = await import('./twoFactor.service.js');
-
-      if (!totpCode && !backupCode) {
-        return {
-          twoFactorRequired: true,
-          user: {
-            id: user.id,
-            email: user.email,
-          },
-        };
-      }
-
-      let is2FAValid = false;
-      let authMethod = 'TOTP';
-
-      if (totpCode) {
-        is2FAValid = verify2FACode(user.twoFactorSecret, totpCode);
-      } else if (backupCode) {
-        is2FAValid = await verifyAndConsumeBackupCode(user.id, backupCode);
-        authMethod = 'BACKUP_CODE';
-      }
-
-      if (!is2FAValid) {
-        await prisma.auditLog.create({
-          data: {
-            adminId: user.id,
-            action: 'ADMIN_2FA_FAILURE',
-            targetType: 'User',
-            targetId: user.id,
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null,
-            details: { method: authMethod },
-          },
-        }).catch(() => {});
-
-        const error = new Error('Invalid 2FA verification code.');
-        error.statusCode = 401;
-        error.errorCode = 'INVALID_2FA_CODE';
-        throw error;
-      }
-
-      await prisma.auditLog.create({
-        data: {
-          adminId: user.id,
-          action: 'ADMIN_2FA_SUCCESS',
-          targetType: 'User',
-          targetId: user.id,
-          ipAddress: ipAddress || null,
-          userAgent: userAgent || null,
-          details: { method: authMethod },
-        },
-      }).catch(() => {});
-    }
   }
 
   // Audit log successful admin login

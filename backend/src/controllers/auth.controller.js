@@ -84,35 +84,6 @@ export async function login(req, res, next) {
       userAgent,
     });
 
-    if (result.twoFactorEnrollmentRequired) {
-      res.clearCookie('refreshToken', getClearCookieOptions());
-      res.clearCookie('csrfToken', getCsrfClearCookieOptions());
-      return apiSuccess(
-        res,
-        {
-          twoFactorEnrollmentRequired: true,
-          enrollmentToken: result.enrollmentToken,
-          token: result.token,
-          expiresIn: result.expiresIn,
-          user: result.user,
-        },
-        'Two-factor authentication setup required.'
-      );
-    }
-
-    if (result.twoFactorRequired) {
-      res.clearCookie('refreshToken', getClearCookieOptions());
-      res.clearCookie('csrfToken', getCsrfClearCookieOptions());
-      return apiSuccess(
-        res,
-        {
-          twoFactorRequired: true,
-          user: result.user,
-        },
-        'Two-factor authentication code required.'
-      );
-    }
-
     const csrfToken = crypto.randomBytes(32).toString('hex');
     if (result.refreshTokenString) {
       res.cookie('refreshToken', result.refreshTokenString, getRefreshCookieOptions());
