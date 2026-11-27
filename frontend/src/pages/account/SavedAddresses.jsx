@@ -101,9 +101,9 @@ export function SavedAddresses() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="font-editorial text-2xl font-bold text-primary">Saved Addresses</h2>
+          <h2 className="font-editorial text-xl sm:text-2xl font-bold text-primary">Saved Addresses</h2>
           <p className="text-xs text-primary/60">Manage up to 10 delivery addresses for quick gifting checkout.</p>
         </div>
         <Button
@@ -111,6 +111,7 @@ export function SavedAddresses() {
           variant="accent"
           onClick={() => setModalOpen(true)}
           disabled={addresses.length >= 10}
+          className="w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-1.5" />
           <span>Add Address</span>

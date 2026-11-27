@@ -73,14 +73,14 @@ export function Home() {
                 Discover heavenly-scented candles, curated bouquets, and thoughtful aesthetic gifts. Crafted with love for birthdays, anniversaries, and cozy self-care.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <Link to="/shop">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
+                <Link to="/shop" className="w-full sm:w-auto">
                   <Button variant="accent" size="lg" className="w-full sm:w-auto">
                     <span>Explore The Drop</span>
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
-                <Link to="/shop?category=candle-bouquets">
+                <Link to="/shop?category=candle-bouquets" className="w-full sm:w-auto">
                   <Button variant="outline" size="lg" className="w-full sm:w-auto">
                     View Candle Bouquets
                   </Button>
@@ -127,22 +127,22 @@ export function Home() {
       </section>
 
       {/* Categories Showcase */}
-      <section className="py-16 bg-white border-y-2 border-border">
+      <section className="py-12 sm:py-16 bg-white border-y-2 border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 sm:mb-10">
             <div>
               <Badge variant="sage" className="mb-2">CURATED AESTHETICS</Badge>
-              <h2 className="font-editorial text-3xl sm:text-4xl font-extrabold text-primary">
+              <h2 className="font-editorial text-2xl sm:text-4xl font-extrabold text-primary">
                 Shop By Category
               </h2>
             </div>
-            <Link to="/shop" className="text-sm font-bold text-accent hover:underline flex items-center gap-1 mt-2 md:mt-0">
+            <Link to="/shop" className="text-xs sm:text-sm font-bold text-accent hover:underline flex items-center gap-1 mt-2 md:mt-0">
               <span>View All Categories</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
             {loading ? (
               Array(5).fill(0).map((_, i) => (
                 <Skeleton key={i} className="aspect-square w-full rounded-2xl" />
@@ -181,19 +181,19 @@ export function Home() {
       </section>
 
       {/* Featured Products Drop */}
-      <section className="py-20 bg-canvas">
+      <section className="py-12 sm:py-20 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
             <Badge variant="accent" tilt={true} className="mb-3">HANDPICKED SPECIALS</Badge>
-            <h2 className="font-editorial text-3xl sm:text-5xl font-extrabold text-primary">
+            <h2 className="font-editorial text-2xl sm:text-4xl lg:text-5xl font-extrabold text-primary">
               The Gifting Drop
             </h2>
-            <p className="text-sm sm:text-base text-primary/70 mt-3 font-medium">
+            <p className="text-xs sm:text-base text-primary/70 mt-2 sm:mt-3 font-medium">
               Aesthetic hand-crafted candle bouquets, floral centerpieces, and dessert candles ready to spark joy.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
             {loading ? (
               Array(4).fill(0).map((_, i) => (
                 <div key={i} className="space-y-3">
@@ -211,7 +211,7 @@ export function Home() {
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-2xl p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+                    className="bg-white rounded-2xl p-2.5 sm:p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
                   >
                     <div className="relative">
                       {/* Product Image */}
@@ -254,13 +254,13 @@ export function Home() {
                         </Link>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-border/10">
-                        <div>
-                          <span className="font-editorial text-base sm:text-lg font-black text-primary">
+                      <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5 pt-2 sm:pt-2.5 border-t border-border/10">
+                        <div className="min-w-0">
+                          <span className="font-editorial text-sm sm:text-lg font-black text-primary">
                             ₹{(product.price / 100).toFixed(0)}
                           </span>
                           {hasDiscount && (
-                            <span className="text-xs line-through text-primary/40 ml-1.5 font-medium">
+                            <span className="text-[10px] sm:text-xs line-through text-primary/40 ml-1 font-medium">
                               ₹{(product.compareAtPrice / 100).toFixed(0)}
                             </span>
                           )}
@@ -271,7 +271,7 @@ export function Home() {
                             type="button"
                             onClick={() => addToCart(product.id, null, 1)}
                             disabled={product.stock <= 0}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex-shrink-0"
                             aria-label={`Add ${product.name} to bag`}
                           >
                             <ShoppingBag className="w-3.5 h-3.5" />

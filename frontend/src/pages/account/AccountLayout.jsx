@@ -21,20 +21,20 @@ export function AccountLayout() {
         <title>My Account | That Jalta Diya</title>
       </Helmet>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         {/* User Greeting Bar */}
-        <div className="mb-8 p-6 rounded-3xl bg-surface border-2 border-border shadow-pop-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
+        <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-surface border-2 border-border shadow-pop-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="min-w-0 w-full">
             <Badge variant="butter" tilt={true} className="mb-2">CUSTOMER DASHBOARD</Badge>
-            <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
+            <h1 className="font-editorial text-xl sm:text-3xl font-extrabold text-primary truncate">
               Hello, {user?.name || 'Candle Lover'}! ✨
             </h1>
-            <p className="text-xs text-primary/70 font-mono mt-1">{user?.email}</p>
+            <p className="text-xs text-primary/70 font-mono mt-1 truncate">{user?.email}</p>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 border-b-2 border-border pb-4 mb-8 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 border-b-2 border-border pb-3 sm:pb-4 mb-6 sm:mb-8 overflow-x-auto no-scrollbar">
           {navLinks.map(link => {
             const Icon = link.icon;
             return (
@@ -43,7 +43,7 @@ export function AccountLayout() {
                 to={link.path}
                 end={link.end}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all min-h-[44px] select-none whitespace-nowrap cursor-pointer ${
+                  `flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold transition-all min-h-[40px] sm:min-h-[44px] select-none whitespace-nowrap cursor-pointer ${
                     isActive
                       ? 'bg-primary text-white border-2 border-border shadow-pop-sm'
                       : 'bg-white text-primary hover:bg-surface border-2 border-border/40'

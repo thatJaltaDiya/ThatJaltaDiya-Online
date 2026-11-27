@@ -107,7 +107,7 @@ export function AdminOrders() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Badge variant="butter" tilt={true} className="mb-2">FULFILLMENT</Badge>
-          <h1 className="font-editorial text-3xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
             Customer Orders ({orders.length})
           </h1>
         </div>
@@ -151,7 +151,7 @@ export function AdminOrders() {
       {/* Orders Table */}
       <Card className="p-0 overflow-hidden bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium">
+          <table className="w-full min-w-[640px] text-left text-xs font-medium">
             <thead className="bg-surface border-b-2 border-border text-primary/70 uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3 px-4">Order #</th>
@@ -274,23 +274,23 @@ export function AdminOrders() {
             </form>
 
             {/* Printable Packing Slip / Invoice Section */}
-            <div id="printable-invoice" className="p-5 rounded-2xl border-2 border-border bg-white space-y-4">
-              <div className="flex items-start justify-between pb-3 border-b border-border/10">
+            <div id="printable-invoice" className="p-3.5 sm:p-5 rounded-2xl border-2 border-border bg-white space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 pb-3 border-b border-border/10">
                 <div>
-                  <h3 className="font-editorial text-xl font-extrabold text-primary">That Jalta Diya</h3>
+                  <h3 className="font-editorial text-lg sm:text-xl font-extrabold text-primary">That Jalta Diya</h3>
                   <p className="text-[10px] text-primary/60">Handcrafted Candle Bouquets & Gifts Atelier</p>
                 </div>
                 <button
                   type="button"
                   onClick={handlePrintSlip}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-surface"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-surface self-start sm:self-auto"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Slip</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
                 <div>
                   <span className="text-[10px] font-bold uppercase text-primary/50 block">Customer</span>
                   <div className="font-bold text-primary">{selectedOrder.user?.name}</div>

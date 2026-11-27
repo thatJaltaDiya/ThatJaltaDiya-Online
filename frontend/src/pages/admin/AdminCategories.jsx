@@ -94,37 +94,37 @@ export function AdminCategories() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <Badge variant="butter" tilt={true} className="mb-2">STORE TAXONOMY</Badge>
-          <h1 className="font-editorial text-3xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
             Categories ({categories.length})
           </h1>
         </div>
-        <Button variant="accent" size="sm" onClick={handleOpenCreate}>
+        <Button variant="accent" size="sm" onClick={handleOpenCreate} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-1.5" />
           <span>Add Category</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {categories.map(cat => (
-          <Card key={cat.id} className="p-5 bg-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl border border-border overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
+          <Card key={cat.id} className="p-4 sm:p-5 bg-white flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border border-border overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
                 {cat.image ? (
                   <img src={cat.image} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <Layers className="w-6 h-6 text-primary/40" />
                 )}
               </div>
-              <div>
-                <h3 className="font-editorial text-base font-bold text-primary">{cat.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-editorial text-sm sm:text-base font-bold text-primary truncate">{cat.name}</h3>
                 <span className="text-xs text-primary/60 font-semibold">{cat._count?.products || 0} Products</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => handleOpenEdit(cat)}
                 className="p-2 rounded-lg border border-border/40 hover:bg-surface text-primary"

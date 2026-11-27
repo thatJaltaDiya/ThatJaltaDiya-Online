@@ -18,13 +18,13 @@ export function Navbar() {
       <MarqueeStrip />
 
       {/* Main Nav Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
           {/* Mobile Menu Button */}
           <div className="flex items-center lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl border-2 border-border shadow-pop-sm bg-white text-primary hover:bg-surface min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-xl border-2 border-border shadow-pop-sm bg-white text-primary hover:bg-surface min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -32,18 +32,18 @@ export function Navbar() {
           </div>
 
           {/* Brand Logo */}
-          <div className="flex items-center flex-shrink-0 mr-4 lg:mr-8 xl:mr-10">
-            <Link to="/" className="group flex items-center gap-2.5">
+          <div className="flex items-center flex-shrink-0 mr-1 sm:mr-4 lg:mr-8 xl:mr-10">
+            <Link to="/" className="group flex items-center gap-2 sm:gap-2.5">
               <img
                 src="/logo.jpg"
                 alt="That Jalta Diya"
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-border object-cover shadow-pop-sm group-hover:rotate-6 transition-transform flex-shrink-0"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-border object-cover shadow-pop-sm group-hover:rotate-6 transition-transform flex-shrink-0"
               />
               <div className="flex flex-col">
-                <span className="font-editorial text-lg sm:text-xl xl:text-2xl font-black tracking-tight text-primary block leading-tight whitespace-nowrap">
+                <span className="font-editorial text-base sm:text-xl xl:text-2xl font-black tracking-tight text-primary block leading-tight whitespace-nowrap">
                   That Jalta Diya
                 </span>
-                <span className="text-[8px] sm:text-[9px] uppercase font-bold tracking-wider text-accent block leading-none mt-0.5 whitespace-nowrap">
+                <span className="hidden min-[360px]:block text-[8px] sm:text-[9px] uppercase font-bold tracking-wider text-accent leading-none mt-0.5 whitespace-nowrap">
                   Candle Bouquets & Gifts
                 </span>
               </div>
@@ -70,7 +70,7 @@ export function Navbar() {
           </nav>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 ml-3 lg:ml-6">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 ml-1 sm:ml-3 lg:ml-6">
             {/* Wishlist (hidden for Admin) */}
             {!isAdmin && (
               <Link
@@ -203,7 +203,49 @@ export function Navbar() {
             Contact
           </Link>
 
-          {!isAuthenticated && (
+          {isAuthenticated ? (
+            <div className="pt-2 space-y-2">
+              <div className="text-xs font-bold text-primary/60 truncate px-1">
+                Signed in as {user?.name || user?.email}
+              </div>
+              {isAdmin ? (
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2.5 px-4 rounded-xl border-2 border-border bg-accent text-white font-bold text-sm text-center shadow-pop-sm"
+                >
+                  Admin Dashboard
+                </Link>
+              ) : (
+                <div className="flex gap-2">
+                  <Link
+                    to="/account"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2.5 rounded-full border-2 border-border bg-white font-bold text-xs shadow-pop-sm"
+                  >
+                    My Orders
+                  </Link>
+                  <Link
+                    to="/account/addresses"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2.5 rounded-full border-2 border-border bg-white font-bold text-xs shadow-pop-sm"
+                  >
+                    Addresses
+                  </Link>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logout();
+                }}
+                className="w-full py-2.5 rounded-full border-2 border-red-200 bg-red-50 text-red-600 font-bold text-xs"
+              >
+                Log Out
+              </button>
+            </div>
+          ) : (
             <div className="pt-2 flex gap-3">
               <Link
                 to="/login"

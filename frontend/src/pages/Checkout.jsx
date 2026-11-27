@@ -238,8 +238,8 @@ export function Checkout() {
         <title>Checkout | That Jalta Diya</title>
       </Helmet>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="mb-6 sm:mb-8">
           <Badge variant="butter" tilt={true} className="mb-2">CHECKOUT</Badge>
           <h1 className="font-editorial text-2xl sm:text-3xl lg:text-4xl font-extrabold text-primary break-words">
             Complete Your Gift Order
@@ -248,11 +248,11 @@ export function Checkout() {
 
         {/* Email Verification Alert Banner */}
         {!user?.isEmailVerified && (
-          <div className="mb-6 p-4 rounded-xl border-2 border-accent bg-red-50 text-red-950 flex items-center justify-between text-xs font-bold">
-            <span>
+          <div className="mb-6 p-3.5 sm:p-4 rounded-xl border-2 border-accent bg-red-50 text-red-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold">
+            <span className="break-words">
               ⚠️ Your email ({user?.email}) is not verified yet. Verification is required before placing an order.
             </span>
-            <Link to="/account" className="underline text-accent">Verify Now</Link>
+            <Link to="/account" className="underline text-accent whitespace-nowrap">Verify Now</Link>
           </div>
         )}
 

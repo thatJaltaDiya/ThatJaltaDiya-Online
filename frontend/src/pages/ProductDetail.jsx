@@ -118,22 +118,22 @@ export function ProductDetail() {
         </script>
       </Helmet>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-xs font-bold text-primary/60 mb-6 truncate" aria-label="Breadcrumb">
+        <nav className="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-bold text-primary/60 mb-4 sm:mb-6" aria-label="Breadcrumb">
           <Link to="/" className="hover:text-primary">Home</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
           <Link to="/shop" className="hover:text-primary">Shop</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
           <Link to={`/shop?category=${productData.category?.slug}`} className="hover:text-primary">
             {productData.category?.name}
           </Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-primary truncate">{productData.name}</span>
+          <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="text-primary truncate max-w-[180px] sm:max-w-xs">{productData.name}</span>
         </nav>
 
         {/* Product Details Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-start">
           {/* Gallery View */}
           <div className="space-y-4">
             <div className="aspect-square rounded-3xl overflow-hidden border-2 border-border shadow-pop-md bg-white relative">
@@ -234,7 +234,7 @@ export function ProductDetail() {
             {/* Quantity Selector & Action Buttons (hidden for Admin) */}
             {!isAdmin && (
               <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-4">
                   <div className="flex items-center border-2 border-border rounded-full bg-white shadow-pop-sm">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}

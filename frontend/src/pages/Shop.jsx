@@ -86,22 +86,22 @@ export function Shop() {
         <meta name="description" content="Browse our complete collection of aesthetic candle bouquets, luxury scented soy candles, and curated gift hampers." />
       </Helmet>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10">
         {/* Header Breadcrumb & Title */}
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <Badge variant="butter" tilt={true} className="mb-2">ALL PRODUCTS</Badge>
-          <h1 className="font-editorial text-4xl sm:text-5xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-4xl lg:text-5xl font-extrabold text-primary leading-tight">
             {selectedCategory
               ? categories.find(c => c.slug === selectedCategory)?.name || 'Category Collection'
               : 'Our Complete Gifting Catalog'}
           </h1>
-          <p className="text-sm text-primary/70 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-primary/70 mt-1 font-medium">
             Handcrafted soy candles and floral bouquet creations for every special celebration.
           </p>
         </div>
 
         {/* Search, Filter & Sort Control Strip */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-8 bg-white p-3.5 sm:p-4 rounded-2xl border border-border/20 shadow-sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-8 bg-white p-3 sm:p-4 rounded-2xl border border-border/20 shadow-sm">
           {/* Search bar with debounce */}
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-primary/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -155,6 +155,54 @@ export function Shop() {
           </div>
         </div>
 
+        {/* Mobile Category Filter Drawer */}
+        {filterDrawerOpen && (
+          <div className="lg:hidden mb-5 bg-white p-4 rounded-2xl border-2 border-border shadow-pop-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-editorial text-sm font-bold text-primary">Filter by Category</h3>
+              <button
+                type="button"
+                onClick={() => setFilterDrawerOpen(false)}
+                className="p-1 text-primary/60 hover:text-primary"
+                aria-label="Close filters"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  updateFilter({ category: undefined, page: 1 });
+                  setFilterDrawerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                  !selectedCategory
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-surface/60 text-primary border-border/20'
+                }`}
+              >
+                All Products
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    updateFilter({ category: cat.slug, page: 1 });
+                    setFilterDrawerOpen(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    selectedCategory === cat.slug
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-surface/60 text-primary border-border/20'
+                  }`}
+                >
+                  {cat.name} ({cat._count?.products || 0})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Main Content Layout: Sidebar + Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
           {/* Desktop Filter Sidebar */}
@@ -206,7 +254,7 @@ export function Shop() {
           {/* Product Cards Grid */}
           <div className="lg:col-span-3 space-y-8">
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
                 {Array(6).fill(0).map((_, i) => (
                   <div key={i} className="space-y-3">
                     <Skeleton className="aspect-square w-full rounded-2xl" />
@@ -216,15 +264,15 @@ export function Shop() {
                 ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="text-center py-16 bg-surface-card rounded-2xl border-2 border-dashed border-border p-8">
-                <p className="font-editorial text-2xl font-bold text-primary mb-2">No matching products found</p>
+              <div className="text-center py-12 sm:py-16 bg-surface-card rounded-2xl border-2 border-dashed border-border p-6 sm:p-8">
+                <p className="font-editorial text-xl sm:text-2xl font-bold text-primary mb-2">No matching products found</p>
                 <p className="text-xs text-primary/60 mb-6">Try broadening your search term or clearing filters.</p>
                 <Button variant="primary" onClick={() => setSearchParams({})}>
                   Clear All Filters
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
                 {products.map(product => {
                   const primaryImg = product.images?.[0]?.url || "/uploads/placeholder.webp";
                   const isItemWishlisted = isWishlisted(product.id);
@@ -233,7 +281,7 @@ export function Shop() {
                   return (
                     <div
                       key={product.id}
-                      className="bg-white rounded-2xl p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+                      className="bg-white rounded-2xl p-2.5 sm:p-3 border border-border/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
                     >
                       <div className="relative">
                         <Link to={`/product/${product.slug}`} className="block overflow-hidden rounded-xl bg-surface/40 aspect-square relative">
@@ -281,13 +329,13 @@ export function Shop() {
                           </Link>
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-border/10">
-                          <div>
-                            <span className="font-editorial text-base sm:text-lg font-black text-primary">
+                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5 pt-2 sm:pt-2.5 border-t border-border/10">
+                          <div className="min-w-0">
+                            <span className="font-editorial text-sm sm:text-lg font-black text-primary">
                               ₹{(product.price / 100).toFixed(0)}
                             </span>
                             {hasDiscount && (
-                              <span className="text-xs line-through text-primary/40 ml-1.5 font-medium">
+                              <span className="text-[10px] sm:text-xs line-through text-primary/40 ml-1 font-medium">
                                 ₹{(product.compareAtPrice / 100).toFixed(0)}
                               </span>
                             )}
@@ -298,7 +346,7 @@ export function Shop() {
                               type="button"
                               onClick={() => addToCart(product.id, null, 1)}
                               disabled={product.stock <= 0}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex-shrink-0"
                               aria-label={`Add ${product.name} to bag`}
                             >
                               <ShoppingBag className="w-3.5 h-3.5" />

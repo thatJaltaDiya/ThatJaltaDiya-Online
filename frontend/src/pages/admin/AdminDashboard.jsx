@@ -59,66 +59,66 @@ export function AdminDashboard() {
   } = data || {};
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Page Title */}
       <div>
         <Badge variant="butter" tilt={true} className="mb-2">OVERVIEW</Badge>
-        <h1 className="font-editorial text-3xl font-extrabold text-primary">
+        <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
           Store Performance & Metrics
         </h1>
       </div>
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between text-primary/60">
-            <span className="text-xs font-bold uppercase tracking-wider">Total Revenue</span>
-            <DollarSign className="w-5 h-5 text-accent" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-3.5 sm:p-5 bg-white space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between text-primary/60 gap-1">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Revenue</span>
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0" />
           </div>
-          <div className="font-editorial text-3xl font-black text-primary">
+          <div className="font-editorial text-2xl sm:text-3xl font-black text-primary">
             ₹{(totalRevenue / 100).toFixed(0)}
           </div>
-          <span className="text-[11px] font-semibold text-emerald-700 block">From confirmed payments</span>
+          <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-700 block">From confirmed payments</span>
         </Card>
 
-        <Card className="p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between text-primary/60">
-            <span className="text-xs font-bold uppercase tracking-wider">Total Orders</span>
-            <ShoppingBag className="w-5 h-5 text-primary" />
+        <Card className="p-3.5 sm:p-5 bg-white space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between text-primary/60 gap-1">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Orders</span>
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
           </div>
-          <div className="font-editorial text-3xl font-black text-primary">
+          <div className="font-editorial text-2xl sm:text-3xl font-black text-primary">
             {totalOrders}
           </div>
-          <span className="text-[11px] font-semibold text-primary/60 block">Lifetime customer orders</span>
+          <span className="text-[10px] sm:text-[11px] font-semibold text-primary/60 block">Lifetime customer orders</span>
         </Card>
 
-        <Card className="p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between text-primary/60">
-            <span className="text-xs font-bold uppercase tracking-wider">Pending Orders</span>
-            <Clock className="w-5 h-5 text-amber-600" />
+        <Card className="p-3.5 sm:p-5 bg-white space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between text-primary/60 gap-1">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Pending Orders</span>
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0" />
           </div>
-          <div className="font-editorial text-3xl font-black text-amber-600">
+          <div className="font-editorial text-2xl sm:text-3xl font-black text-amber-600">
             {pendingOrders}
           </div>
-          <span className="text-[11px] font-semibold text-amber-800 block">Awaiting fulfillment</span>
+          <span className="text-[10px] sm:text-[11px] font-semibold text-amber-800 block">Awaiting fulfillment</span>
         </Card>
 
-        <Card className="p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between text-primary/60">
-            <span className="text-xs font-bold uppercase tracking-wider">Low Stock Alerts</span>
-            <AlertTriangle className="w-5 h-5 text-red-500" />
+        <Card className="p-3.5 sm:p-5 bg-white space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between text-primary/60 gap-1">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Low Stock Alerts</span>
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0" />
           </div>
-          <div className="font-editorial text-3xl font-black text-red-600">
+          <div className="font-editorial text-2xl sm:text-3xl font-black text-red-600">
             {lowStockProducts.length}
           </div>
-          <span className="text-[11px] font-semibold text-red-700 block">≤ 5 units remaining</span>
+          <span className="text-[10px] sm:text-[11px] font-semibold text-red-700 block">≤ 5 units remaining</span>
         </Card>
       </div>
 
       {/* 7-Day Sales Trend & Low Stock Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start">
         {/* Sales Chart Box */}
-        <Card className="lg:col-span-8 p-6 bg-white space-y-4">
+        <Card className="lg:col-span-8 p-4 sm:p-6 bg-white space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border/10">
             <div>
               <h2 className="font-editorial text-xl font-bold text-primary">Past 7 Days Sales</h2>
@@ -186,13 +186,13 @@ export function AdminDashboard() {
       </div>
 
       {/* Recent Orders Table */}
-      <Card className="p-6 bg-white space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-border/10">
+      <Card className="p-4 sm:p-6 bg-white space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/10">
           <div>
-            <h2 className="font-editorial text-xl font-bold text-primary">Recent Orders</h2>
+            <h2 className="font-editorial text-lg sm:text-xl font-bold text-primary">Recent Orders</h2>
             <p className="text-xs text-primary/60">Latest store transactions</p>
           </div>
-          <Link to="/admin/orders">
+          <Link to="/admin/orders" className="self-start sm:self-auto">
             <Button size="sm" variant="outline">
               <span>View All Orders</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -201,7 +201,7 @@ export function AdminDashboard() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium">
+          <table className="w-full min-w-[540px] text-left text-xs font-medium">
             <thead>
               <tr className="border-b border-border/20 text-primary/60 uppercase tracking-wider text-[10px]">
                 <th className="py-2.5">Order</th>

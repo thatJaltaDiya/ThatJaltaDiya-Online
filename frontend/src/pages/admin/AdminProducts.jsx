@@ -216,10 +216,10 @@ export function AdminProducts() {
   return (
     <div className="space-y-6">
       {/* Title & Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <Badge variant="butter" tilt={true} className="mb-2">CATALOG MANAGER</Badge>
-          <h1 className="font-editorial text-3xl font-extrabold text-primary">
+          <h1 className="font-editorial text-2xl sm:text-3xl font-extrabold text-primary">
             Products ({products.length})
           </h1>
           <p className="text-xs text-primary/60">
@@ -227,7 +227,7 @@ export function AdminProducts() {
           </p>
         </div>
 
-        <Button variant="accent" size="sm" onClick={handleOpenCreate}>
+        <Button variant="accent" size="sm" onClick={handleOpenCreate} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-1.5" />
           <span>Add New Product</span>
         </Button>
@@ -261,7 +261,7 @@ export function AdminProducts() {
       {/* Product List Table */}
       <Card className="p-0 overflow-hidden bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium">
+          <table className="w-full min-w-[620px] text-left text-xs font-medium">
             <thead className="bg-surface border-b-2 border-border text-primary/70 uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3 px-4">Item</th>
@@ -308,7 +308,7 @@ export function AdminProducts() {
                       {p.isFeatured && <Badge variant="butter" className="text-[8px]">Featured</Badge>}
                     </td>
 
-                    <td className="py-3 px-4 text-right space-x-1">
+                    <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
                       <button
                         onClick={() => handleOpenEdit(p)}
                         className="p-1.5 rounded-lg border border-border/40 hover:bg-surface text-primary"
@@ -371,7 +371,7 @@ export function AdminProducts() {
             </select>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input
               label="Price (INR ₹) *"
               type="number"
@@ -397,12 +397,12 @@ export function AdminProducts() {
           </div>
 
           {/* Image Upload Zone */}
-          <div className="p-4 rounded-xl border-2 border-dashed border-border bg-surface space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="p-3.5 sm:p-4 rounded-xl border-2 border-dashed border-border bg-surface space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-primary">
                 Product Photos (Upload multiple)
               </label>
-              <label className="px-3 py-1.5 bg-white border border-border rounded-lg text-xs font-bold cursor-pointer hover:bg-butter flex items-center gap-1.5">
+              <label className="px-3 py-1.5 bg-white border border-border rounded-lg text-xs font-bold cursor-pointer hover:bg-butter flex items-center justify-center gap-1.5 w-full sm:w-auto">
                 <Upload className="w-3.5 h-3.5" />
                 <span>Upload Photos</span>
                 <input
@@ -426,7 +426,7 @@ export function AdminProducts() {
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-0 right-0 bg-red-600 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-0 right-0 bg-red-600 text-white px-1 py-0.5 text-[10px] leading-none rounded-bl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                     >
                       ✕
                     </button>
@@ -436,7 +436,7 @@ export function AdminProducts() {
                       <button
                         type="button"
                         onClick={() => handleSetPrimaryImage(idx)}
-                        className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-bold text-center opacity-0 group-hover:opacity-100"
+                        className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-[8px] font-bold text-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         Set Primary
                       </button>
