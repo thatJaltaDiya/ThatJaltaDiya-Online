@@ -24,18 +24,15 @@ export const registerSchema = z.object({
     val => (typeof val === 'string' && val.trim() === '' ? undefined : val),
     z.string().regex(/^[0-9+ -]{10,15}$/, 'Invalid phone number format').optional()
   ),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
   password: z.string().min(1, 'Password is required').max(128),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const resetPasswordSchema = z.object({
@@ -54,13 +51,11 @@ export const verifyEmailSchema = z.object({
 
 export const resendVerificationSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255).transform(e => e.trim().toLowerCase()),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const sendOtpSchema = z.object({
   identifier: z.string().email('Please enter a valid email address').max(255),
   purpose: z.enum(['EMAIL_CHANGE', 'LOGIN']),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const verifyOtpSchema = z.object({

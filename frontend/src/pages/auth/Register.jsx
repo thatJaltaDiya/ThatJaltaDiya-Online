@@ -6,7 +6,6 @@ import { Button } from '../../components/ui/Button.jsx';
 import { Input } from '../../components/ui/Input.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
-import { TurnstileWidget } from '../../components/ui/TurnstileWidget.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 
@@ -17,7 +16,6 @@ export function Register() {
     phone: '',
     password: '',
   });
-  const [turnstileToken, setTurnstileToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const { register } = useAuth();
@@ -43,7 +41,6 @@ export function Register() {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
-        turnstileToken,
       };
       if (form.phone && form.phone.trim()) {
         payload.phone = form.phone.trim();
@@ -149,8 +146,6 @@ export function Register() {
                 <span>At least one number (0-9)</span>
               </div>
             </div>
-
-            <TurnstileWidget onVerify={setTurnstileToken} />
 
             <Button
               type="submit"

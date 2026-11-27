@@ -219,7 +219,6 @@ export async function authenticateUser({ email, password, ipAddress, userAgent }
     error.statusCode = 401;
     error.errorCode = 'INVALID_CREDENTIALS';
     error.failedAttempts = attempts;
-    error.captchaRequired = attempts >= 3;
     throw error;
   }
 

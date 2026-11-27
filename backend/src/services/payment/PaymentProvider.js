@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import { env } from '../../config/env.js';
 import { prisma } from '../../config/prisma.js';
 import { logger } from '../../config/logger.js';
+import { sendOrderConfirmationEmail } from '../email.service.js';
 
 export class NotImplementedError extends Error {
   constructor(message = 'PaymentProvider method not implemented') {
@@ -178,7 +179,7 @@ export async function reconcilePendingRazorpayPayments() {
         { razorpayOrderId: { not: null } },
       ],
     },
-    include: { order: true },
+    include: { order: { include: { user: { select: { email: true } } } } },
     take: 50,
   });
 
@@ -202,27 +203,57 @@ export async function reconcilePendingRazorpayPayments() {
 
       const captured = attempts.find((p) => p.status === 'captured');
       if (captured) {
-        await prisma.$transaction([
-          prisma.payment.update({
+        const confirmedOrder = await prisma.$transaction(async (tx) => {
+          await tx.payment.update({
             where: { id: payment.id },
             data: {
               status: 'PAID',
               transactionId: captured.id,
               payload: { reconciledPayment: captured },
             },
-          }),
-          prisma.order.update({
-            where: { id: payment.orderId },
+          });
+
+          const claim = await tx.order.updateMany({
+            where: { id: payment.orderId, status: 'PENDING', paymentStatus: { not: 'PAID' } },
             data: {
               paymentStatus: 'PAID',
-              status: payment.order?.status === 'PENDING' ? 'CONFIRMED' : payment.order?.status,
+              status: 'CONFIRMED',
               paymentMethod: 'RAZORPAY',
               paymentId: captured.id,
               razorpayOrderId: payment.razorpayOrderId,
               paymentExpiresAt: null,
             },
-          }),
-        ]);
+          });
+
+          if (claim.count === 1) {
+            return tx.order.findUnique({
+              where: { id: payment.orderId },
+              include: { items: true },
+            });
+          }
+
+          if (payment.order?.paymentStatus !== 'PAID') {
+            await tx.order.update({
+              where: { id: payment.orderId },
+              data: {
+                paymentStatus: 'PAID',
+                paymentMethod: 'RAZORPAY',
+                paymentId: captured.id,
+                razorpayOrderId: payment.razorpayOrderId,
+                paymentExpiresAt: null,
+              },
+            });
+          }
+          return null;
+        });
+
+        if (confirmedOrder?.status === 'CONFIRMED' && payment.order?.user?.email) {
+          try {
+            await sendOrderConfirmationEmail(payment.order.user.email, confirmedOrder);
+          } catch (err) {
+            logger.error({ err, orderId: payment.orderId }, 'Order confirmation email failed after reconciliation');
+          }
+        }
         updated++;
         logger.info(
           { orderId: payment.orderId, transactionId: captured.id, razorpayOrderId: payment.razorpayOrderId },

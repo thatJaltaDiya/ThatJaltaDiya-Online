@@ -94,14 +94,12 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          "https://challenges.cloudflare.com",
           "https://checkout.razorpay.com",
         ],
         styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: allowedImgSrc,
         frameSrc: [
-          "https://challenges.cloudflare.com",
           "https://api.razorpay.com",
           "https://checkout.razorpay.com",
         ],
@@ -149,8 +147,6 @@ app.use(
       "X-Requested-With",
       "X-CSRF-Token",
       "Idempotency-Key",
-      "cf-turnstile-response",
-      "x-turnstile-token",
       ...(env.NODE_ENV === "test" ? ["x-test-client-ip"] : []),
     ],
     exposedHeaders: ["X-Request-Id"],

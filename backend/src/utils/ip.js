@@ -117,7 +117,7 @@ export function getIpSubnetKey(ip) {
  * Securely determine real client IP:
  * - Only trust `CF-Connecting-IP` if request arrived through a verified Cloudflare proxy edge
  * - Otherwise fallback to Express `req.ip`
- * - In local dev/testing, allow test IP override via x-test-client-ip if ALLOW_TEST_CAPTCHA=true
+ * - In local dev/testing, allow test IP override via x-test-client-ip
  */
 export function getClientIp(req) {
   if (!req) return '127.0.0.1';

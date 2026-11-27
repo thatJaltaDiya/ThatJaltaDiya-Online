@@ -61,8 +61,8 @@ export function AuthProvider({ children }) {
     setUser(userData);
   }, []);
 
-  const login = useCallback(async (email, password, turnstileToken) => {
-    const res = await api.post('/auth/login', { email, password, turnstileToken });
+  const login = useCallback(async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
     if (res.success) {
       completeSession(res.data.user, res.data.accessToken, res.data.csrfToken);
       return res.data;

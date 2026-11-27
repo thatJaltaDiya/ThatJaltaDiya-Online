@@ -9,7 +9,6 @@ describe('Phase 2: Authentication & Security Foundation Tests', () => {
     email: `test_buyer_${Date.now()}@example.com`,
     password: 'BuyerSecurePassword123!',
     name: 'Aesthetic Buyer',
-    turnstileToken: 'dummy-test-token',
   };
 
   afterAll(async () => {
@@ -49,7 +48,6 @@ describe('Phase 2: Authentication & Security Foundation Tests', () => {
         email: 'weakpass@example.com',
         password: 'weak',
         name: 'Weak Pass',
-        turnstileToken: 'dummy-test-token',
       });
 
     expect(res.status).toBe(400);

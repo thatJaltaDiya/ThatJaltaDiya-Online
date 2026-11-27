@@ -1,6 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import crypto from 'crypto';
+
+const { sendOrderConfirmationEmailMock } = vi.hoisted(() => ({
+  sendOrderConfirmationEmailMock: vi.fn(async () => ({ messageId: 'mock-msg-id' })),
+}));
+
+vi.mock('../src/services/email.service.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    sendOrderConfirmationEmail: sendOrderConfirmationEmailMock,
+  };
+});
+
 import { app } from '../src/app.js';
 import { prisma } from '../src/config/prisma.js';
 import { env } from '../src/config/env.js';
@@ -299,6 +312,156 @@ describe('Phase 3: Commerce APIs, Idempotency, RBAC & Stock Tests', () => {
       expect(paymentRow.razorpayOrderId).toBe(rzpOrderId);
     } finally {
       env.RAZORPAY_WEBHOOK_SECRET = prevWebhookSecret;
+    }
+  });
+
+  it('Order confirmation email: strictly skipped while PENDING and sent once upon confirmation', async () => {
+    const prevWebhookSecret = env.RAZORPAY_WEBHOOK_SECRET;
+    const prevKeySecret = env.RAZORPAY_KEY_SECRET;
+    env.RAZORPAY_WEBHOOK_SECRET = 'test_razorpay_webhook_secret_email';
+    env.RAZORPAY_KEY_SECRET = 'test_razorpay_key_secret_email';
+
+    try {
+      sendOrderConfirmationEmailMock.mockClear();
+
+      // 1. Place a RAZORPAY order -> starts PENDING, no confirmation email should be sent
+      const addRes = await request(app)
+        .post('/api/v1/cart/items')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({ productId: testProduct.id, quantity: 1 });
+      expect(addRes.status).toBe(200);
+
+      const orderRes = await request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .send({ shippingAddressId: savedAddressId, paymentMethod: 'RAZORPAY' });
+
+      expect(orderRes.status).toBe(201);
+      const pendingOrder = orderRes.body.data;
+      expect(pendingOrder.status).toBe('PENDING');
+      expect(pendingOrder.paymentStatus).toBe('PENDING');
+      expect(sendOrderConfirmationEmailMock).not.toHaveBeenCalled();
+
+      // 2. Confirm via Razorpay webhook -> email sent once
+      const rzpOrderId = `order_email_wh_${Date.now()}`;
+      const rzpPaymentId = `pay_email_wh_${Date.now()}`;
+      await prisma.order.update({
+        where: { id: pendingOrder.id },
+        data: { razorpayOrderId: rzpOrderId },
+      });
+
+      const whPayload = JSON.stringify({
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: rzpPaymentId,
+              order_id: rzpOrderId,
+              amount: pendingOrder.total,
+              currency: 'INR',
+              status: 'captured',
+            },
+          },
+        },
+      });
+      const whSig = crypto
+        .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
+        .update(whPayload)
+        .digest('hex');
+
+      const whRes = await request(app)
+        .post('/api/v1/webhooks/payment')
+        .set('Content-Type', 'application/json')
+        .set('x-razorpay-signature', whSig)
+        .send(whPayload);
+      expect(whRes.status).toBe(200);
+      expect(sendOrderConfirmationEmailMock).toHaveBeenCalledTimes(1);
+      expect(sendOrderConfirmationEmailMock).toHaveBeenCalledWith(
+        customerUser.email,
+        expect.objectContaining({ id: pendingOrder.id, status: 'CONFIRMED' })
+      );
+
+      // 3. Replaying webhook must NOT send a duplicate confirmation email
+      const replayWhRes = await request(app)
+        .post('/api/v1/webhooks/payment')
+        .set('Content-Type', 'application/json')
+        .set('x-razorpay-signature', whSig)
+        .send(whPayload);
+      expect(replayWhRes.status).toBe(200);
+      expect(sendOrderConfirmationEmailMock).toHaveBeenCalledTimes(1);
+
+      // 4. Verify via /payments/razorpay/verify also sends once, and subsequent webhook does not duplicate
+      sendOrderConfirmationEmailMock.mockClear();
+      const addRes2 = await request(app)
+        .post('/api/v1/cart/items')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({ productId: testProduct.id, quantity: 1 });
+      expect(addRes2.status).toBe(200);
+
+      const orderRes2 = await request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .send({ shippingAddressId: savedAddressId, paymentMethod: 'RAZORPAY' });
+      expect(orderRes2.status).toBe(201);
+      const pendingOrder2 = orderRes2.body.data;
+      expect(pendingOrder2.status).toBe('PENDING');
+      expect(sendOrderConfirmationEmailMock).not.toHaveBeenCalled();
+
+      const rzpOrderId2 = `order_email_vrf_${Date.now()}`;
+      const rzpPaymentId2 = `pay_email_vrf_${Date.now()}`;
+      await prisma.order.update({
+        where: { id: pendingOrder2.id },
+        data: { razorpayOrderId: rzpOrderId2 },
+      });
+      const verifySig = crypto
+        .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
+        .update(`${rzpOrderId2}|${rzpPaymentId2}`)
+        .digest('hex');
+
+      const verifyRes = await request(app)
+        .post('/api/v1/payments/razorpay/verify')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({
+          orderId: pendingOrder2.id,
+          razorpay_order_id: rzpOrderId2,
+          razorpay_payment_id: rzpPaymentId2,
+          razorpay_signature: verifySig,
+        });
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.data.status).toBe('CONFIRMED');
+      expect(sendOrderConfirmationEmailMock).toHaveBeenCalledTimes(1);
+
+      // Follow-up webhook for already-confirmed order must NOT duplicate
+      const whPayload2 = JSON.stringify({
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: rzpPaymentId2,
+              order_id: rzpOrderId2,
+              amount: pendingOrder2.total,
+              currency: 'INR',
+              status: 'captured',
+            },
+          },
+        },
+      });
+      const whSig2 = crypto
+        .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
+        .update(whPayload2)
+        .digest('hex');
+      const whRes2 = await request(app)
+        .post('/api/v1/webhooks/payment')
+        .set('Content-Type', 'application/json')
+        .set('x-razorpay-signature', whSig2)
+        .send(whPayload2);
+      expect(whRes2.status).toBe(200);
+      expect(sendOrderConfirmationEmailMock).toHaveBeenCalledTimes(1);
+    } finally {
+      env.RAZORPAY_WEBHOOK_SECRET = prevWebhookSecret;
+      env.RAZORPAY_KEY_SECRET = prevKeySecret;
     }
   });
 });

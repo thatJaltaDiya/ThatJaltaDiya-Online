@@ -26,13 +26,6 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).optional(),
 
-  // Cloudflare Turnstile Anti-Bot
-  TURNSTILE_SECRET_KEY: z.string().optional().default('1x0000000000000000000000000000000AA'),
-  TURNSTILE_ALLOWED_HOSTNAMES: z.string().optional().default('')
-    .transform(s => s ? s.split(',').map(h => h.trim().toLowerCase()).filter(Boolean) : []),
-  ALLOW_TEST_CAPTCHA: z.string().optional().default('false')
-    .transform(v => v === 'true'),
-
   // Storage: Neon Object Storage (S3-compatible) or Local Dev Adapter
   STORAGE_ENDPOINT: z.string().optional().default(process.env.AWS_ENDPOINT_URL_S3 || ''),
   STORAGE_REGION: z.string().default(process.env.AWS_REGION || 'ap-southeast-1'),
@@ -170,14 +163,6 @@ if (env.NODE_ENV === 'production') {
 
   if (env.ALLOW_UNPAID_TEST_ORDERS) {
     errors.push('ALLOW_UNPAID_TEST_ORDERS cannot be true in production');
-  }
-
-  if (env.ALLOW_TEST_CAPTCHA) {
-    errors.push('ALLOW_TEST_CAPTCHA cannot be true in production');
-  }
-
-  if (!env.TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET_KEY === '1x0000000000000000000000000000000AA') {
-    errors.push('TURNSTILE_SECRET_KEY must be a valid Cloudflare secret key in production (not test key)');
   }
 
   if (env.JWT_ACCESS_SECRET.length < 64) {

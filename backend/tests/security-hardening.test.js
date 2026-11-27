@@ -8,7 +8,6 @@ import { app } from '../src/app.js';
 import { prisma } from '../src/config/prisma.js';
 import { env, resolveCookieSameSite } from '../src/config/env.js';
 import { getClientIp, isCloudflareIp, getIpv6Subnet64, getIpSubnetKey } from '../src/utils/ip.js';
-import { verifyTurnstileToken } from '../src/middleware/turnstile.js';
 import * as otpService from '../src/services/otp.service.js';
 import { validateImageMagicBytes } from '../src/middleware/upload.js';
 import { signAccessToken, verifyAccessToken, hashToken } from '../src/utils/tokens.js';
@@ -168,7 +167,7 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
             NODE_ENV: 'production',
             DATABASE_URL: 'postgresql://postgres:postgres@ep-cool-pooler.us-east-1.aws.neon.tech/neondb',
             DIRECT_URL: 'postgresql://postgres:postgres@ep-cool.us-east-1.aws.neon.tech/neondb',
-            ALLOW_TEST_CAPTCHA: 'true', // FATAL in prod
+            ALLOW_UNPAID_TEST_ORDERS: 'true', // FATAL in prod
             JWT_ACCESS_SECRET: 'short_insecure_secret_under_64_chars', // FATAL in prod
           },
         });
@@ -182,19 +181,6 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
 
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('FATAL PRODUCTION CONFIGURATION REFUSED');
-    });
-  });
-
-  // ---------------------------------------------------------
-  // 4. Cloudflare Turnstile Fail-Closed
-  // ---------------------------------------------------------
-  describe('4. Turnstile Bot Protection Fail-Closed', () => {
-    it('Fails closed on missing or empty token', async () => {
-      const validEmpty = await verifyTurnstileToken('', '127.0.0.1');
-      expect(validEmpty).toBe(false);
-
-      const validNull = await verifyTurnstileToken(null, '127.0.0.1');
-      expect(validNull).toBe(false);
     });
   });
 
@@ -1542,44 +1528,6 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
         .set('Authorization', `Bearer ${signAccessToken({ sub: user.id, email: user.email, role: 'CUSTOMER' })}`);
       expect(res.status).toBe(200);
       expect(res.body.data.notes).toBe(xssPayload);
-    });
-
-    // 21. Turnstile coverage: rejects missing tokens on protected routes
-    it('Turnstile rejects requests missing tokens across all protected mutation endpoints', async () => {
-      const origEnv = env.ALLOW_TEST_CAPTCHA;
-      try {
-        env.ALLOW_TEST_CAPTCHA = false; // Force Turnstile enforcement
-
-        // 1. Register without token
-        const regRes = await request(app)
-          .post('/api/v1/auth/register')
-          .send({ name: 'Turnstile User', email: `no_turnstile_${Date.now()}@example.com`, password: 'Password123!' });
-        expect(regRes.status).toBe(400);
-        expect(regRes.body.error?.code || regRes.body.errorCode).toBe('CAPTCHA_REQUIRED');
-
-        // 2. Forgot password without token
-        const forgotRes = await request(app)
-          .post('/api/v1/auth/forgot-password')
-          .send({ email: 'user@example.com' });
-        expect(forgotRes.status).toBe(400);
-        expect(forgotRes.body.error?.code || forgotRes.body.errorCode).toBe('CAPTCHA_REQUIRED');
-
-        // 3. Reset password without token
-        const resetRes = await request(app)
-          .post('/api/v1/auth/reset-password')
-          .send({ token: 'fake-token', password: 'NewPassword123!' });
-        expect(resetRes.status).toBe(400);
-        expect(resetRes.body.error?.code || resetRes.body.errorCode).toBe('CAPTCHA_REQUIRED');
-
-        // 4. Contact form without token
-        const contactRes = await request(app)
-          .post('/api/v1/contact')
-          .send({ name: 'Alice', email: 'alice@example.com', message: 'Hello this is an inquiry about candles.' });
-        expect(contactRes.status).toBe(400);
-        expect(contactRes.body.error?.code || contactRes.body.errorCode).toBe('CAPTCHA_REQUIRED');
-      } finally {
-        env.ALLOW_TEST_CAPTCHA = origEnv;
-      }
     });
 
     // 22. Production env guards & CORS clean 403 test

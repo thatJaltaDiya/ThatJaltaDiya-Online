@@ -6,14 +6,12 @@ import { Button } from '../../components/ui/Button.jsx';
 import { Input } from '../../components/ui/Input.jsx';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
-import { TurnstileWidget } from '../../components/ui/TurnstileWidget.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
@@ -26,7 +24,7 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const authData = await login(email, password, turnstileToken);
+      const authData = await login(email, password);
       showToast({ type: 'success', message: 'Welcome back to That Jalta Diya! ✨' });
       if (authData?.user?.role === 'ADMIN') {
         navigate('/admin');
@@ -93,8 +91,6 @@ export function Login() {
                 </Link>
               </div>
             </div>
-
-            <TurnstileWidget onVerify={setTurnstileToken} />
 
             <Button
               type="submit"

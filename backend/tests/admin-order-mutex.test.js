@@ -9,8 +9,7 @@ import { ALLOWED_ORDER_TRANSITIONS } from '../src/services/order.service.js';
 
 describe('Timed Mutex, Admin Login & Local Delivery Order Tests', () => {
   beforeAll(async () => {
-    // Ensure test environment
-    env.ALLOW_TEST_CAPTCHA = true;
+    // Test suite setup
   });
 
   afterAll(async () => {

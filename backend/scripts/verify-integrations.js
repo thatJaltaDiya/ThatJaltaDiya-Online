@@ -137,14 +137,8 @@ async function verifyIntegrations() {
     allPassed = false;
   }
 
-  // 5. Turnstile and Email Configuration
-  console.log('\n[5/5] Checking Anti-Bot & Email Deliverability Settings...');
-  // Turnstile check
-  if (env.TURNSTILE_SECRET_KEY && env.TURNSTILE_SECRET_KEY !== '1x0000000000000000000000000000000AA') {
-    console.log('  ✓ PASS: Cloudflare Turnstile production secret key configured');
-  } else {
-    console.log('  ℹ NOTICE: Using development test key for Cloudflare Turnstile');
-  }
+  // 5. Email Configuration
+  console.log('\n[5/5] Checking Email Deliverability Settings...');
 
   // Email check
   const hasSmtp = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);

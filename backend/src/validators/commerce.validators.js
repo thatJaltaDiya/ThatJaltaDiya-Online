@@ -55,7 +55,6 @@ export const createOrderSchema = z.object({
   notes: z.string().max(500).optional().nullable(),
   giftMessage: z.string().max(300).optional().nullable(),
   paymentMethod: z.enum(['TEST', 'RAZORPAY', 'CARD', 'UPI', 'NETBANKING', 'COD']).default('TEST'),
-  turnstileToken: z.string().optional(),
 }).strict();
 
 export const validateCouponSchema = z.object({
@@ -68,5 +67,4 @@ export const contactMessageSchema = z.object({
   email: z.string().email().max(255),
   subject: z.string().max(200).optional(),
   message: z.string().min(10).max(2000),
-  turnstileToken: z.string().optional(),
 }).strict();

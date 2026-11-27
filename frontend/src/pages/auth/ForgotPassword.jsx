@@ -5,13 +5,11 @@ import { Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
 import { Input } from '../../components/ui/Input.jsx';
 import { Card } from '../../components/ui/Card.jsx';
-import { TurnstileWidget } from '../../components/ui/TurnstileWidget.jsx';
 import { api } from '../../services/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 
 export function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { showToast } = useToast();
@@ -20,7 +18,7 @@ export function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email, turnstileToken });
+      await api.post('/auth/forgot-password', { email });
       setSubmitted(true);
       showToast({ type: 'success', message: 'Reset link dispatched if account exists.' });
     } catch (err) {
@@ -66,7 +64,6 @@ export function ForgotPassword() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
               />
-              <TurnstileWidget onVerify={setTurnstileToken} />
               <Button type="submit" variant="accent" className="w-full" isLoading={loading}>
                 Send Reset Link
               </Button>

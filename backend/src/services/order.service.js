@@ -394,11 +394,13 @@ export async function createOrder({
         timeout: 10000,
       });
 
-      // Await confirmation email so serverless runtimes don't freeze mid-SMTP
-      try {
-        await sendOrderConfirmationEmail(user.email, order);
-      } catch (err) {
-        logger.error({ err, orderId: order.id }, 'Order confirmation email failed');
+      // Strictly send order confirmation email only once the order is confirmed
+      if (order.status === 'CONFIRMED') {
+        try {
+          await sendOrderConfirmationEmail(user.email, order);
+        } catch (err) {
+          logger.error({ err, orderId: order.id }, 'Order confirmation email failed');
+        }
       }
 
       return order;

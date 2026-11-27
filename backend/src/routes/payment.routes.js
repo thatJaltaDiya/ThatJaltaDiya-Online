@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { writeLimiter } from '../middleware/rateLimiter.js';
 import { paymentProvider } from '../services/payment/PaymentProvider.js';
+import { sendOrderConfirmationEmail } from '../services/email.service.js';
 import { apiSuccess, apiError } from '../utils/response.js';
 import { logger } from '../config/logger.js';
 
@@ -46,11 +47,14 @@ router.post(
       const { orderId } = req.body;
       const order = await prisma.order.findFirst({
         where: { id: orderId, userId: req.user.id },
+        include: { user: { select: { email: true } } },
       });
 
       if (!order) {
         return apiError(res, 'Order not found.', 404, 'ORDER_NOT_FOUND');
       }
+
+      let becameConfirmed = false;
       if (order.paymentStatus === 'PAID') {
         return apiError(res, 'This order is already paid.', 400, 'ORDER_ALREADY_PAID');
       }
@@ -99,11 +103,14 @@ router.post(
 
       const order = await prisma.order.findFirst({
         where: { id: orderId, userId: req.user.id },
+        include: { user: { select: { email: true } } },
       });
 
       if (!order) {
         return apiError(res, 'Order not found.', 404, 'ORDER_NOT_FOUND');
       }
+
+      let becameConfirmed = false;
 
       const verification = await paymentProvider.verifyPayment({
         razorpay_order_id,
@@ -155,11 +162,16 @@ router.post(
           });
         }
 
+        const claim = await tx.order.updateMany({
+          where: { id: order.id, status: 'PENDING' },
+          data: { status: 'CONFIRMED' },
+        });
+        becameConfirmed = claim.count === 1;
+
         return tx.order.update({
           where: { id: order.id },
           data: {
             paymentStatus: 'PAID',
-            status: order.status === 'PENDING' ? 'CONFIRMED' : order.status,
             paymentMethod: 'RAZORPAY',
             paymentId: verification.transactionId,
             razorpayOrderId: razorpay_order_id,
@@ -173,6 +185,14 @@ router.post(
         { orderId: order.id, orderNumber: order.orderNumber, paymentId: verification.transactionId },
         'Razorpay payment verified and saved to payments table'
       );
+
+      if (becameConfirmed && updatedOrder.status === 'CONFIRMED' && order.user?.email) {
+        try {
+          await sendOrderConfirmationEmail(order.user.email, updatedOrder);
+        } catch (err) {
+          logger.error({ err, orderId: order.id }, 'Order confirmation email failed after Razorpay verify');
+        }
+      }
 
       return apiSuccess(res, updatedOrder, 'Payment verified successfully.');
     } catch (err) {

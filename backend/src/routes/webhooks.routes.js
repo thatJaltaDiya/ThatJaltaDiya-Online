@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import { logger } from '../config/logger.js';
 import { paymentProvider } from '../services/payment/PaymentProvider.js';
+import { sendOrderConfirmationEmail } from '../services/email.service.js';
 import { apiSuccess, apiError } from '../utils/response.js';
 
 const router = Router();
@@ -41,6 +42,7 @@ async function handleRazorpayWebhook(req, res, next) {
     const orderIdFromNotes = paymentEntity?.notes?.orderId || orderEntity?.notes?.orderId || null;
 
     if (eventType === 'payment.captured' || eventType === 'order.paid') {
+      let confirmedOrder = null;
       const order = await prisma.order.findFirst({
         where: {
           OR: [
@@ -48,6 +50,7 @@ async function handleRazorpayWebhook(req, res, next) {
             ...(orderIdFromNotes ? [{ id: orderIdFromNotes }] : []),
           ],
         },
+        include: { user: { select: { email: true } } },
       });
 
       if (!order) {
@@ -98,12 +101,29 @@ async function handleRazorpayWebhook(req, res, next) {
           });
         }
 
-        if (order.paymentStatus !== 'PAID') {
+        confirmedOrder = null;
+        const claim = await tx.order.updateMany({
+          where: { id: order.id, status: 'PENDING', paymentStatus: { not: 'PAID' } },
+          data: {
+            paymentStatus: 'PAID',
+            status: 'CONFIRMED',
+            paymentMethod: 'RAZORPAY',
+            paymentId: paymentId || order.paymentId,
+            razorpayOrderId: razorpayOrderId || order.razorpayOrderId,
+            paymentExpiresAt: null,
+          },
+        });
+
+        if (claim.count === 1) {
+          confirmedOrder = await tx.order.findUnique({
+            where: { id: order.id },
+            include: { items: true },
+          });
+        } else if (order.paymentStatus !== 'PAID') {
           await tx.order.update({
             where: { id: order.id },
             data: {
               paymentStatus: 'PAID',
-              status: order.status === 'PENDING' ? 'CONFIRMED' : order.status,
               paymentMethod: 'RAZORPAY',
               paymentId: paymentId || order.paymentId,
               razorpayOrderId: razorpayOrderId || order.razorpayOrderId,
@@ -114,6 +134,14 @@ async function handleRazorpayWebhook(req, res, next) {
       });
 
       logger.info({ eventType, orderId: order.id, paymentId, razorpayOrderId }, 'Razorpay webhook processed as PAID');
+
+      if (confirmedOrder?.status === 'CONFIRMED' && order.user?.email) {
+        try {
+          await sendOrderConfirmationEmail(order.user.email, confirmedOrder);
+        } catch (err) {
+          logger.error({ err, orderId: order.id }, 'Order confirmation email failed after webhook');
+        }
+      }
     } else if (eventType === 'payment.failed') {
       const order = await prisma.order.findFirst({
         where: {
