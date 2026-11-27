@@ -136,6 +136,26 @@ export class RazorpayProvider extends PaymentProvider {
       transactionId: isVerified ? razorpay_payment_id : null,
     };
   }
+
+  /**
+   * Verify Razorpay webhook X-Razorpay-Signature against exact raw request body.
+   */
+  verifyWebhookSignature(rawBody, signature) {
+    if (!env.RAZORPAY_WEBHOOK_SECRET || !signature) {
+      return false;
+    }
+
+    const bodyBuffer = Buffer.isBuffer(rawBody)
+      ? rawBody
+      : Buffer.from(typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody || {}), 'utf8');
+
+    const expectedSignature = crypto
+      .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
+      .update(bodyBuffer)
+      .digest('hex');
+
+    return timingSafeHexEquals(expectedSignature, String(signature).trim());
+  }
 }
 
 export const paymentProvider = new RazorpayProvider();

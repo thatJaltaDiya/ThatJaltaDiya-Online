@@ -53,6 +53,7 @@ const envSchema = z.object({
   // Payment: Razorpay
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
 
   // Email: Nodemailer (SMTP / Resend)
   SMTP_HOST: z.string().optional().default(''),

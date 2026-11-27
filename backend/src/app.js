@@ -164,7 +164,8 @@ app.use(hpp());
 // Response Compression
 app.use(compression());
 
-// Body Parsers: Admin mutation routes get 200kb limit; default gets 10kb limit
+// Body Parsers: Raw body for signed payment webhooks; 200kb for admin; 10kb default
+app.use("/api/v1/webhooks", express.raw({ type: "application/json", limit: "256kb" }));
 app.use("/api/v1/admin", express.json({ limit: "200kb" }));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));

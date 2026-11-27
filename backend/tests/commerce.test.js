@@ -3,6 +3,7 @@ import request from 'supertest';
 import crypto from 'crypto';
 import { app } from '../src/app.js';
 import { prisma } from '../src/config/prisma.js';
+import { env } from '../src/config/env.js';
 import { signAccessToken } from '../src/utils/tokens.js';
 import { hashPassword } from '../src/utils/password.js';
 
@@ -73,6 +74,7 @@ describe('Phase 3: Commerce APIs, Idempotency, RBAC & Stock Tests', () => {
 
   afterAll(async () => {
     // Cleanup
+    await prisma.payment.deleteMany({ where: { order: { userId: customerUser.id } } });
     await prisma.orderItem.deleteMany({ where: { productName: 'Velvet Rose Candle Bouquet' } });
     await prisma.order.deleteMany({ where: { userId: customerUser.id } });
     await prisma.stockLog.deleteMany({ where: { productId: testProduct.id } });
@@ -200,5 +202,76 @@ describe('Phase 3: Commerce APIs, Idempotency, RBAC & Stock Tests', () => {
 
     expect(adminRes.status).toBe(200);
     expect(adminRes.body.data.totalOrders).toBeDefined();
+  });
+
+  it('Razorpay webhook: verifies signature and marks pending order PAID on payment.captured', async () => {
+    const prevWebhookSecret = env.RAZORPAY_WEBHOOK_SECRET;
+    env.RAZORPAY_WEBHOOK_SECRET = 'test_razorpay_webhook_secret_123';
+
+    try {
+      const pendingOrder = await prisma.order.findFirst({
+        where: { userId: customerUser.id },
+      });
+      const rzpOrderId = `order_wh_${Date.now()}`;
+      const rzpPaymentId = `pay_wh_${Date.now()}`;
+
+      await prisma.order.update({
+        where: { id: pendingOrder.id },
+        data: { razorpayOrderId: rzpOrderId, paymentStatus: 'PENDING', status: 'PENDING' },
+      });
+
+      const rawPayload = JSON.stringify({
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: rzpPaymentId,
+              order_id: rzpOrderId,
+              amount: pendingOrder.total,
+              currency: 'INR',
+              status: 'captured',
+            },
+          },
+        },
+      });
+
+      // Invalid signature must be rejected (400)
+      const badRes = await request(app)
+        .post('/api/v1/webhooks/payment')
+        .set('Content-Type', 'application/json')
+        .set('x-razorpay-signature', '0'.repeat(64))
+        .send(rawPayload);
+      expect(badRes.status).toBe(400);
+      expect(badRes.body.error.code).toBe('INVALID_WEBHOOK_SIGNATURE');
+
+      // Valid HMAC-SHA256 signature must mark order PAID + CONFIRMED and record Payment row
+      const validSig = crypto
+        .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
+        .update(rawPayload)
+        .digest('hex');
+
+      const okRes = await request(app)
+        .post('/api/v1/webhooks/payment')
+        .set('Content-Type', 'application/json')
+        .set('x-razorpay-signature', validSig)
+        .send(rawPayload);
+
+      expect(okRes.status).toBe(200);
+      expect(okRes.body.data.received).toBe(true);
+
+      const updatedOrder = await prisma.order.findUnique({ where: { id: pendingOrder.id } });
+      expect(updatedOrder.paymentStatus).toBe('PAID');
+      expect(updatedOrder.status).toBe('CONFIRMED');
+      expect(updatedOrder.paymentId).toBe(rzpPaymentId);
+
+      const paymentRow = await prisma.payment.findFirst({
+        where: { orderId: pendingOrder.id, transactionId: rzpPaymentId },
+      });
+      expect(paymentRow).toBeDefined();
+      expect(paymentRow.status).toBe('PAID');
+      expect(paymentRow.razorpayOrderId).toBe(rzpOrderId);
+    } finally {
+      env.RAZORPAY_WEBHOOK_SECRET = prevWebhookSecret;
+    }
   });
 });
