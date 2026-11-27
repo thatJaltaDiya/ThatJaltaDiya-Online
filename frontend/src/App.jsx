@@ -72,7 +72,7 @@ export default function App() {
         <Route
           path="/cart"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute customerOnly>
               <Cart />
             </ProtectedRoute>
           }
@@ -96,7 +96,7 @@ export default function App() {
         <Route
           path="/checkout"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute customerOnly>
               <Checkout />
             </ProtectedRoute>
           }
@@ -104,7 +104,7 @@ export default function App() {
         <Route
           path="/order-confirmation/:orderNumber"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute customerOnly>
               <OrderConfirmation />
             </ProtectedRoute>
           }
@@ -114,7 +114,7 @@ export default function App() {
         <Route
           path="/account"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute customerOnly>
               <AccountLayout />
             </ProtectedRoute>
           }

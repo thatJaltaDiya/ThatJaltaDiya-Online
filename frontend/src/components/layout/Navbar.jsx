@@ -71,22 +71,24 @@ export function Navbar() {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 ml-3 lg:ml-6">
-            {/* Wishlist */}
-            <Link
-              to="/account/wishlist"
-              className="relative p-2 rounded-full border border-transparent hover:border-border hover:bg-surface flex items-center justify-center transition-all text-primary hover:text-accent"
-              aria-label="View Wishlist"
-            >
-              <Heart className="w-4 h-4" />
-              {wishlistItems.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-white rounded-full text-[9px] font-extrabold border border-border flex items-center justify-center shadow-pop-sm">
-                  {wishlistItems.length}
-                </span>
-              )}
-            </Link>
+            {/* Wishlist (hidden for Admin) */}
+            {!isAdmin && (
+              <Link
+                to="/account/wishlist"
+                className="relative p-2 rounded-full border border-transparent hover:border-border hover:bg-surface flex items-center justify-center transition-all text-primary hover:text-accent"
+                aria-label="View Wishlist"
+              >
+                <Heart className="w-4 h-4" />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-white rounded-full text-[9px] font-extrabold border border-border flex items-center justify-center shadow-pop-sm">
+                    {wishlistItems.length}
+                  </span>
+                )}
+              </Link>
+            )}
 
-            {/* Cart Button (only visible when signed in) */}
-            {isAuthenticated && (
+            {/* Cart Button (only visible for signed-in customers) */}
+            {isAuthenticated && !isAdmin && (
               <Link
                 to="/cart"
                 className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-butter border-2 border-border shadow-pop-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-pop transition-all min-h-[40px]"
@@ -118,26 +120,29 @@ export function Navbar() {
                     <div className="px-4 py-2 border-b border-border/10 text-xs font-bold text-primary truncate">
                       {user?.name || user?.email}
                     </div>
-                    {isAdmin && (
+                    {isAdmin ? (
                       <Link
                         to="/admin"
                         className="block px-4 py-2 text-xs font-bold text-accent hover:bg-surface"
                       >
                         Admin Dashboard
                       </Link>
+                    ) : (
+                      <>
+                        <Link
+                          to="/account"
+                          className="block px-4 py-2 text-xs font-medium text-primary hover:bg-surface"
+                        >
+                          My Orders & Profile
+                        </Link>
+                        <Link
+                          to="/account/addresses"
+                          className="block px-4 py-2 text-xs font-medium text-primary hover:bg-surface"
+                        >
+                          Saved Addresses
+                        </Link>
+                      </>
                     )}
-                    <Link
-                      to="/account"
-                      className="block px-4 py-2 text-xs font-medium text-primary hover:bg-surface"
-                    >
-                      My Orders & Profile
-                    </Link>
-                    <Link
-                      to="/account/addresses"
-                      className="block px-4 py-2 text-xs font-medium text-primary hover:bg-surface"
-                    >
-                      Saved Addresses
-                    </Link>
                     <button
                       onClick={logout}
                       className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-border/10 mt-1 cursor-pointer"

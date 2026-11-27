@@ -6,13 +6,13 @@ import { useToast } from './ToastContext.jsx';
 const WishlistContext = createContext(null);
 
 export function WishlistProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const { showToast } = useToast();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchWishlist = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || isAdmin) {
       setWishlistItems([]);
       return;
     }
@@ -27,7 +27,7 @@ export function WishlistProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin]);
 
   useEffect(() => {
     fetchWishlist();
@@ -38,6 +38,9 @@ export function WishlistProvider({ children }) {
   }, [wishlistItems]);
 
   const toggleWishlist = useCallback(async (productId) => {
+    if (isAdmin) {
+      return false;
+    }
     if (!isAuthenticated) {
       showToast({ type: 'info', message: 'Please sign in to save items to your wishlist.' });
       return false;

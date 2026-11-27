@@ -10,6 +10,7 @@ import { Skeleton } from '../components/ui/Skeleton.jsx';
 import { api } from '../services/api.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function ProductDetail() {
   const { slug } = useParams();
@@ -20,6 +21,7 @@ export function ProductDetail() {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
 
+  const { isAdmin } = useAuth();
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
@@ -229,53 +231,55 @@ export function ProductDetail() {
               </div>
             )}
 
-            {/* Quantity Selector & Action Buttons */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border-2 border-border rounded-full bg-white shadow-pop-sm">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1 || isOutOfStock}
-                    className="w-10 h-10 flex items-center justify-center font-bold text-lg hover:bg-surface rounded-l-full disabled:opacity-40 min-h-[44px]"
-                    aria-label="Decrease quantity"
+            {/* Quantity Selector & Action Buttons (hidden for Admin) */}
+            {!isAdmin && (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center border-2 border-border rounded-full bg-white shadow-pop-sm">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1 || isOutOfStock}
+                      className="w-10 h-10 flex items-center justify-center font-bold text-lg hover:bg-surface rounded-l-full disabled:opacity-40 min-h-[44px]"
+                      aria-label="Decrease quantity"
+                    >
+                      -
+                    </button>
+                    <span className="w-12 text-center font-bold text-sm select-none">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}
+                      disabled={quantity >= currentStock || isOutOfStock}
+                      className="w-10 h-10 flex items-center justify-center font-bold text-lg hover:bg-surface rounded-r-full disabled:opacity-40 min-h-[44px]"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <Button
+                    variant="accent"
+                    size="lg"
+                    disabled={isOutOfStock}
+                    onClick={() => addToCart(productData.id, selectedVariant?.id || null, quantity)}
+                    className="flex-1 text-sm font-extrabold uppercase tracking-wider"
                   >
-                    -
-                  </button>
-                  <span className="w-12 text-center font-bold text-sm select-none">
-                    {quantity}
-                  </span>
+                    <ShoppingBag className="w-5 h-5 mr-2" />
+                    <span>{isOutOfStock ? 'Sold Out' : 'Add To Bag'}</span>
+                  </Button>
+
                   <button
-                    onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}
-                    disabled={quantity >= currentStock || isOutOfStock}
-                    className="w-10 h-10 flex items-center justify-center font-bold text-lg hover:bg-surface rounded-r-full disabled:opacity-40 min-h-[44px]"
-                    aria-label="Increase quantity"
+                    onClick={() => toggleWishlist(productData.id)}
+                    className={`p-3.5 rounded-full border-2 border-border shadow-pop-sm hover:scale-105 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                      itemWishlisted ? 'bg-accent/10 border-accent text-accent' : 'bg-white text-primary'
+                    }`}
+                    aria-label="Add to favorites"
                   >
-                    +
+                    <Heart className={`w-5 h-5 ${itemWishlisted ? 'fill-accent text-accent' : ''}`} />
                   </button>
                 </div>
-
-                <Button
-                  variant="accent"
-                  size="lg"
-                  disabled={isOutOfStock}
-                  onClick={() => addToCart(productData.id, selectedVariant?.id || null, quantity)}
-                  className="flex-1 text-sm font-extrabold uppercase tracking-wider"
-                >
-                  <ShoppingBag className="w-5 h-5 mr-2" />
-                  <span>{isOutOfStock ? 'Sold Out' : 'Add To Bag'}</span>
-                </Button>
-
-                <button
-                  onClick={() => toggleWishlist(productData.id)}
-                  className={`p-3.5 rounded-full border-2 border-border shadow-pop-sm hover:scale-105 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                    itemWishlisted ? 'bg-accent/10 border-accent text-accent' : 'bg-white text-primary'
-                  }`}
-                  aria-label="Add to favorites"
-                >
-                  <Heart className={`w-5 h-5 ${itemWishlisted ? 'fill-accent text-accent' : ''}`} />
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Sanitized Rich Text Description */}
             <div className="pt-6 border-t border-border/10">
@@ -317,15 +321,17 @@ export function ProductDetail() {
                     </Link>
                     <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/10">
                       <span className="font-editorial font-bold text-primary">₹{(rel.price / 100).toFixed(0)}</span>
-                      <button
-                        type="button"
-                        onClick={() => addToCart(rel.id, null, 1)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent transition-colors shadow-sm"
-                        aria-label={`Add ${rel.name} to bag`}
-                      >
-                        <ShoppingBag className="w-3 h-3" />
-                        <span>Add</span>
-                      </button>
+                      {!isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => addToCart(rel.id, null, 1)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent transition-colors shadow-sm"
+                          aria-label={`Add ${rel.name} to bag`}
+                        >
+                          <ShoppingBag className="w-3 h-3" />
+                          <span>Add</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

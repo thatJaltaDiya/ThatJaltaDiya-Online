@@ -9,11 +9,13 @@ import { Skeleton } from '../components/ui/Skeleton.jsx';
 import { api } from '../services/api.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function Home() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
@@ -225,17 +227,19 @@ export function Home() {
                         />
                       </Link>
 
-                      {/* Wishlist Button */}
-                      <button
-                        onClick={() => toggleWishlist(product.id)}
-                        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/95 shadow-sm hover:scale-110 active:scale-95 flex items-center justify-center transition-all border border-border/10"
-                        aria-label="Wishlist item"
-                      >
-                        <Heart
-                          className={`w-4 h-4 transition-colors ${isItemWishlisted ? 'fill-accent text-accent' : 'text-primary/70 hover:text-primary'
-                            }`}
-                        />
-                      </button>
+                      {/* Wishlist Button (customers/guests only) */}
+                      {!isAdmin && (
+                        <button
+                          onClick={() => toggleWishlist(product.id)}
+                          className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/95 shadow-sm hover:scale-110 active:scale-95 flex items-center justify-center transition-all border border-border/10"
+                          aria-label="Wishlist item"
+                        >
+                          <Heart
+                            className={`w-4 h-4 transition-colors ${isItemWishlisted ? 'fill-accent text-accent' : 'text-primary/70 hover:text-primary'
+                              }`}
+                          />
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-3 flex-1 flex flex-col justify-between">
@@ -262,16 +266,18 @@ export function Home() {
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => addToCart(product.id, null, 1)}
-                          disabled={product.stock <= 0}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                          aria-label={`Add ${product.name} to bag`}
-                        >
-                          <ShoppingBag className="w-3.5 h-3.5" />
-                          <span>Add</span>
-                        </button>
+                        {!isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(product.id, null, 1)}
+                            disabled={product.stock <= 0}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            aria-label={`Add ${product.name} to bag`}
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

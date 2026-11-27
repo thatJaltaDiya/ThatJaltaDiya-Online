@@ -16,7 +16,7 @@ function getOrCreateGuestId() {
 }
 
 export function CartProvider({ children }) {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,6 +25,11 @@ export function CartProvider({ children }) {
 
   // Fetch Cart
   const fetchCart = useCallback(async () => {
+    if (isAdmin) {
+      setCart({ items: [], subtotal: 0, totalItems: 0 });
+      setLoading(false);
+      return;
+    }
     try {
       const guestId = !isAuthenticated ? getOrCreateGuestId() : undefined;
       const query = guestId ? `?guestId=${guestId}` : '';
@@ -37,12 +42,12 @@ export function CartProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin]);
 
   // When user logs in, merge guest cart
   useEffect(() => {
     async function handleAuthChange() {
-      if (isAuthenticated) {
+      if (isAuthenticated && !isAdmin) {
         const guestId = localStorage.getItem('tjd_guest_id');
         if (guestId) {
           try {
@@ -56,9 +61,13 @@ export function CartProvider({ children }) {
       fetchCart();
     }
     handleAuthChange();
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, isAdmin, fetchCart]);
 
   const addToCart = useCallback(async (productId, variantId = null, quantity = 1) => {
+    if (isAdmin) {
+      showToast({ type: 'info', message: 'Admin accounts cannot purchase products.' });
+      return { success: false };
+    }
     if (!isAuthenticated) {
       showToast({ type: 'info', message: 'Please sign in to add items to your bag.' });
       navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`);
