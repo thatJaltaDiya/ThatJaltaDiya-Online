@@ -142,6 +142,21 @@ export async function getProductBySlug(slug) {
   };
 }
 
+/**
+ * Normalize product image payloads into Prisma ProductImage create records.
+ */
+function buildProductImageCreateData(images = [], productName, isDemo = false) {
+  const hasExplicitPrimary = images.some((img) => Boolean(img.isPrimary));
+  return images.map((img, idx) => ({
+    url: img.url,
+    storageKey: img.storageKey || null,
+    altText: img.altText || productName,
+    sortOrder: idx,
+    isPrimary: hasExplicitPrimary ? Boolean(img.isPrimary) : idx === 0,
+    isDemo,
+  }));
+}
+
 export async function createProduct(data, images = []) {
   const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
   const cleanDescription = sanitizeHtml(data.description);
@@ -169,14 +184,7 @@ export async function createProduct(data, images = []) {
         metaDescription: data.metaDescription || null,
         categoryId: data.categoryId,
         images: {
-          create: images.map((img, idx) => ({
-            url: img.url,
-            storageKey: img.storageKey || null,
-            altText: img.altText || data.name,
-            sortOrder: idx,
-            isPrimary: idx === 0,
-            isDemo: data.isDemo ?? false,
-          })),
+          create: buildProductImageCreateData(images, data.name, data.isDemo ?? false),
         },
       },
       include: {
@@ -201,19 +209,44 @@ export async function createProduct(data, images = []) {
 }
 
 export async function updateProduct(id, data) {
-  const updateData = { ...data };
-  if (data.description) {
-    updateData.description = sanitizeHtml(data.description);
+  const { images, ...rest } = data;
+  const updateData = { ...rest };
+
+  if (typeof rest.name === 'string') {
+    updateData.name = rest.name.trim();
+  }
+  if (typeof rest.sku === 'string') {
+    updateData.sku = rest.sku.trim();
+  }
+  if (rest.shortDescription !== undefined) {
+    updateData.shortDescription = rest.shortDescription ? rest.shortDescription.trim() : null;
+  }
+  if (rest.description) {
+    updateData.description = sanitizeHtml(rest.description);
   }
 
-  return prisma.product.update({
-    where: { id },
-    data: updateData,
-    include: {
-      images: true,
-      variants: true,
-      category: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    if (Array.isArray(images)) {
+      const existing = await tx.product.findUnique({
+        where: { id },
+        select: { name: true, isDemo: true },
+      });
+      const fallbackName = updateData.name || existing?.name || 'Product';
+      updateData.images = {
+        deleteMany: {},
+        create: buildProductImageCreateData(images, fallbackName, existing?.isDemo ?? false),
+      };
+    }
+
+    return tx.product.update({
+      where: { id },
+      data: updateData,
+      include: {
+        images: { orderBy: { sortOrder: 'asc' } },
+        variants: true,
+        category: true,
+      },
+    });
   });
 }
 

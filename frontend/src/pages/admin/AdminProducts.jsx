@@ -120,6 +120,7 @@ export function AdminProducts() {
       if (res.success) {
         const newImages = res.data.map((item, idx) => ({
           url: item.mediumUrl || item.url,
+          storageKey: item.storageKey || null,
           isPrimary: form.images.length === 0 && idx === 0,
         }));
         setForm(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
@@ -162,6 +163,12 @@ export function AdminProducts() {
       price: Math.round(Number(form.price) * 100),
       compareAtPrice: form.compareAtPrice ? Math.round(Number(form.compareAtPrice) * 100) : null,
       stock: Number(form.stock) || 0,
+      images: (form.images || []).map((img) => ({
+        url: img.url,
+        ...(img.storageKey ? { storageKey: img.storageKey } : {}),
+        ...(img.altText ? { altText: img.altText } : {}),
+        isPrimary: Boolean(img.isPrimary),
+      })),
     };
 
     try {

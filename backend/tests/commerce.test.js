@@ -204,6 +204,33 @@ describe('Phase 3: Commerce APIs, Idempotency, RBAC & Stock Tests', () => {
     expect(adminRes.body.data.totalOrders).toBeDefined();
   });
 
+  it('Admin product update: updates price and images without 500 error', async () => {
+    const partialRes = await request(app)
+      .patch(`/api/v1/admin/products/${testProduct.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ price: 149900 });
+
+    expect(partialRes.status).toBe(200);
+    expect(partialRes.body.data.price).toBe(149900);
+    expect(partialRes.body.data.stock).toBe(3);
+
+    const withImagesRes = await request(app)
+      .patch(`/api/v1/admin/products/${testProduct.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: testProduct.name,
+        price: 159900,
+        images: [{ url: '/api/v1/uploads/test-img.webp', isPrimary: true }],
+      });
+
+    expect(withImagesRes.status).toBe(200);
+    expect(withImagesRes.body.data.price).toBe(159900);
+    expect(withImagesRes.body.data.images).toHaveLength(1);
+    expect(withImagesRes.body.data.images[0].url).toBe('/api/v1/uploads/test-img.webp');
+
+    await prisma.productImage.deleteMany({ where: { productId: testProduct.id } });
+  });
+
   it('Razorpay webhook: verifies signature and marks pending order PAID on payment.captured', async () => {
     const prevWebhookSecret = env.RAZORPAY_WEBHOOK_SECRET;
     env.RAZORPAY_WEBHOOK_SECRET = 'test_razorpay_webhook_secret_123';

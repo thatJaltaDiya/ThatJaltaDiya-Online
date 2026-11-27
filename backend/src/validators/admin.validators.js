@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+const productImageSchema = z.object({
+  url: z.string(),
+  storageKey: z.string().optional().nullable(),
+  altText: z.string().optional().nullable(),
+  isPrimary: z.boolean().optional(),
+});
+
 export const createProductAdminSchema = z.object({
   name: z.string().min(2).max(200),
   slug: z.string().max(200).optional(),
@@ -19,14 +26,30 @@ export const createProductAdminSchema = z.object({
   metaTitle: z.string().max(200).optional().nullable(),
   metaDescription: z.string().max(500).optional().nullable(),
   categoryId: z.string().uuid(),
-  images: z.array(z.object({
-    url: z.string(),
-    altText: z.string().optional(),
-    isPrimary: z.boolean().optional(),
-  })).optional().default([]),
+  images: z.array(productImageSchema).optional().default([]),
 }).strict();
 
-export const updateProductAdminSchema = createProductAdminSchema.partial().strict();
+export const updateProductAdminSchema = z.object({
+  name: z.string().min(2).max(200),
+  slug: z.string().max(200),
+  description: z.string().min(5).max(50000, 'Product description cannot exceed 50,000 characters'),
+  shortDescription: z.string().max(300).nullable(),
+  price: z.number().int().positive('Price must be positive in paise'),
+  compareAtPrice: z.number().int().positive().nullable(),
+  costPrice: z.number().int().positive().nullable(),
+  sku: z.string().min(2).max(50),
+  stock: z.number().int().nonnegative(),
+  isLowStockAlert: z.boolean(),
+  lowStockThreshold: z.number().int().nonnegative(),
+  isActive: z.boolean(),
+  isFeatured: z.boolean(),
+  isBestseller: z.boolean(),
+  isNew: z.boolean(),
+  metaTitle: z.string().max(200).nullable(),
+  metaDescription: z.string().max(500).nullable(),
+  categoryId: z.string().uuid(),
+  images: z.array(productImageSchema),
+}).partial().strict();
 
 export const adjustStockAdminSchema = z.object({
   productId: z.string().uuid(),
