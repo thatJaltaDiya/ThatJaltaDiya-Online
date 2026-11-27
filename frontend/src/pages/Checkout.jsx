@@ -51,6 +51,7 @@ export function Checkout() {
   const [notes, setNotes] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [razorpayEnabled, setRazorpayEnabled] = useState(false);
+  const [shippingSettings, setShippingSettings] = useState({ shippingFee: 0, freeShippingThreshold: 0 });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -60,9 +61,10 @@ export function Checkout() {
 
     async function loadCheckoutInit() {
       try {
-        const [addrRes, payRes] = await Promise.all([
+        const [addrRes, payRes, settingsRes] = await Promise.all([
           api.get('/addresses'),
           api.get('/payments/config').catch(() => ({ success: false })),
+          api.get('/settings/public').catch(() => ({ success: false })),
         ]);
         if (addrRes.success && addrRes.data.length > 0) {
           setSavedAddresses(addrRes.data);
@@ -74,6 +76,12 @@ export function Checkout() {
         if (payRes?.success && payRes.data?.enabled) {
           setRazorpayEnabled(true);
         }
+        if (settingsRes?.success && settingsRes.data) {
+          setShippingSettings({
+            shippingFee: Number(settingsRes.data.shippingFee ?? 0),
+            freeShippingThreshold: Number(settingsRes.data.freeShippingThreshold ?? 0),
+          });
+        }
       } catch {
         setIsAddingNewAddress(true);
       }
@@ -81,9 +89,12 @@ export function Checkout() {
     loadCheckoutInit();
   }, [isAuthenticated, navigate]);
 
+  const calculateShippingFee = () => {
+    return cart.subtotal >= shippingSettings.freeShippingThreshold ? 0 : shippingSettings.shippingFee;
+  };
+
   const calculateFinalTotal = () => {
-    const shippingFee = cart.subtotal >= 149900 ? 0 : 9900;
-    return Math.max(0, cart.subtotal + shippingFee);
+    return Math.max(0, cart.subtotal + calculateShippingFee());
   };
 
   const handlePlaceOrder = async () => {
@@ -397,7 +408,7 @@ export function Checkout() {
                 <div className="flex justify-between">
                   <span className="text-primary/70">Shipping</span>
                   <span className="font-bold text-primary">
-                    {cart.subtotal >= 149900 ? '₹0' : '₹99'}
+                    ₹{(calculateShippingFee() / 100).toFixed(0)}
                   </span>
                 </div>
                 <div className="pt-3 border-t-2 border-border flex justify-between items-baseline font-editorial">

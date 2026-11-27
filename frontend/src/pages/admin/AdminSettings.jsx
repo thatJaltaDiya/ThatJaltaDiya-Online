@@ -10,8 +10,8 @@ import { useToast } from '../../context/ToastContext.jsx';
 
 export function AdminSettings() {
   const [settings, setSettings] = useState({
-    shippingFee: 9900,
-    freeShippingThreshold: 149900,
+    shippingFee: 0,
+    freeShippingThreshold: 0,
     announcementText: '',
     supportEmail: '',
     supportPhone: '',
@@ -97,7 +97,7 @@ export function AdminSettings() {
             <Input
               label="Standard Shipping Charge (₹)"
               type="number"
-              value={settings.shippingFee ? settings.shippingFee / 100 : ''}
+              value={settings.shippingFee !== undefined && settings.shippingFee !== null ? settings.shippingFee / 100 : ''}
               onChange={(e) => setSettings({ ...settings, shippingFee: Number(e.target.value) * 100 })}
             />
             <Button
@@ -115,7 +115,7 @@ export function AdminSettings() {
             <Input
               label="Free Shipping Order Threshold (₹)"
               type="number"
-              value={settings.freeShippingThreshold ? settings.freeShippingThreshold / 100 : ''}
+              value={settings.freeShippingThreshold !== undefined && settings.freeShippingThreshold !== null ? settings.freeShippingThreshold / 100 : ''}
               onChange={(e) => setSettings({ ...settings, freeShippingThreshold: Number(e.target.value) * 100 })}
             />
             <Button

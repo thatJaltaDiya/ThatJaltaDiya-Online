@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
@@ -7,11 +7,26 @@ import { Badge } from '../components/ui/Badge.jsx';
 import { Card } from '../components/ui/Card.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../services/api.js';
 
 export function Cart() {
   const { cart, updateQuantity, removeFromCart } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [shippingSettings, setShippingSettings] = useState({ shippingFee: 0, freeShippingThreshold: 0 });
+
+  useEffect(() => {
+    api.get('/settings/public').then((res) => {
+      if (res?.success && res.data) {
+        setShippingSettings({
+          shippingFee: Number(res.data.shippingFee ?? 0),
+          freeShippingThreshold: Number(res.data.freeShippingThreshold ?? 0),
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const estimatedDelivery = cart.subtotal >= shippingSettings.freeShippingThreshold ? 0 : shippingSettings.shippingFee;
 
   const handleCheckoutClick = () => {
     if (!isAuthenticated) {
@@ -137,14 +152,16 @@ export function Cart() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-primary/70">Estimated Delivery</span>
-                  <span className="font-bold text-primary">₹99</span>
+                  <span className="font-bold text-primary">
+                    {estimatedDelivery === 0 ? '₹0' : `₹${(estimatedDelivery / 100).toFixed(0)}`}
+                  </span>
                 </div>
               </div>
 
               <div className="pt-4 border-t-2 border-border flex justify-between items-baseline">
                 <span className="font-editorial text-lg font-extrabold text-primary">Estimated Total</span>
                 <span className="font-editorial text-2xl font-black text-accent">
-                  ₹{((cart.subtotal + 9900) / 100).toFixed(0)}
+                  ₹{((cart.subtotal + estimatedDelivery) / 100).toFixed(0)}
                 </span>
               </div>
 

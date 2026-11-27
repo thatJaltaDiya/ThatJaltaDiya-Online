@@ -394,10 +394,12 @@ export async function createOrder({
         timeout: 10000,
       });
 
-      // Background confirmation email
-      sendOrderConfirmationEmail(user.email, order).catch(err => {
+      // Await confirmation email so serverless runtimes don't freeze mid-SMTP
+      try {
+        await sendOrderConfirmationEmail(user.email, order);
+      } catch (err) {
         logger.error({ err, orderId: order.id }, 'Order confirmation email failed');
-      });
+      }
 
       return order;
     } catch (err) {
@@ -816,7 +818,10 @@ export async function markOrderRefunded(orderId, adminId, reason = 'Admin proces
  * Admin: Update order status & courier details
  */
 export async function updateOrderStatus(orderId, { status, trackingNumber, courier, internalNotes }, adminId = null) {
-  return prisma.$transaction(async (tx) => {
+  let statusChanged = false;
+  let customerEmail = null;
+
+  const updatedOrder = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       include: { user: true, items: true },
@@ -827,6 +832,9 @@ export async function updateOrderStatus(orderId, { status, trackingNumber, couri
       error.statusCode = 404;
       throw error;
     }
+
+    statusChanged = Boolean(status && status !== order.status);
+    customerEmail = order.user?.email || null;
 
     // Validate state transitions
     if (status && status !== order.status) {
@@ -895,16 +903,20 @@ export async function updateOrderStatus(orderId, { status, trackingNumber, couri
       },
     });
 
-    // Notify customer on status update and log failures instead of swallowing
-    if (status && status !== order.status) {
-      sendOrderStatusUpdateEmail(order.user.email, updatedOrder).catch((err) => {
-        logger.error({ err, orderId: order.id, userEmail: order.user.email }, 'Failed to dispatch order status update email');
-      });
-    }
-
     return updatedOrder;
   }, {
     maxWait: 5000,
     timeout: 10000,
   });
+
+  // Notify customer outside transaction and await so serverless runtimes complete delivery
+  if (statusChanged && customerEmail) {
+    try {
+      await sendOrderStatusUpdateEmail(customerEmail, updatedOrder);
+    } catch (err) {
+      logger.error({ err, orderId: updatedOrder.id, userEmail: customerEmail }, 'Failed to dispatch order status update email');
+    }
+  }
+
+  return updatedOrder;
 }

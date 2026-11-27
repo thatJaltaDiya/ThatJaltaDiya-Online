@@ -77,10 +77,12 @@ export async function registerCustomer({ email, password, name, phone }) {
     return { newUser, rawToken };
   });
 
-  // Dispatch verification email in background
-  sendVerificationEmail(user.newUser.email, user.rawToken, user.newUser.name).catch(err => {
-    logger.error({ err, userId: user.newUser.id }, 'Background email send failed');
-  });
+  // Await verification email before returning so serverless runtimes don't freeze mid-SMTP
+  try {
+    await sendVerificationEmail(user.newUser.email, user.rawToken, user.newUser.name);
+  } catch (err) {
+    logger.error({ err, userId: user.newUser.id }, 'Verification email send failed');
+  }
 
   return user.newUser;
 }
@@ -165,7 +167,11 @@ export async function authenticateUser({ email, password, ipAddress, userAgent }
       await new Promise(r => setTimeout(r, delayMs));
 
       if (attempts >= 3) {
-        sendAccountLockoutEmail(user.email).catch(() => {});
+        try {
+          await sendAccountLockoutEmail(user.email);
+        } catch (err) {
+          logger.error({ err, userId: user.id }, 'Admin security alert email failed');
+        }
       }
 
       await prisma.user.update({
@@ -192,7 +198,11 @@ export async function authenticateUser({ email, password, ipAddress, userAgent }
         lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
         // Only send lockout email on the exact threshold attempt to avoid email spamming
         if (attempts === MAX_FAILED_LOGIN_ATTEMPTS) {
-          sendAccountLockoutEmail(user.email).catch(() => {});
+          try {
+            await sendAccountLockoutEmail(user.email);
+          } catch (err) {
+            logger.error({ err, userId: user.id }, 'Customer lockout alert email failed');
+          }
         }
       }
 
@@ -470,9 +480,11 @@ export async function requestPasswordReset(email) {
     }
   });
 
-  sendPasswordResetEmail(user.email, rawToken).catch(err => {
+  try {
+    await sendPasswordResetEmail(user.email, rawToken);
+  } catch (err) {
     logger.error({ err, userId: user.id }, 'Password reset email failed');
-  });
+  }
 
   return { success: true };
 }

@@ -4,22 +4,58 @@ import { logger } from '../config/logger.js';
 
 let transporter = null;
 
-if (env.NODE_ENV !== 'test' && env.SMTP_HOST && env.SMTP_USER) {
+const smtpHost = env.SMTP_HOST ? env.SMTP_HOST.trim() : '';
+const smtpUser = env.SMTP_USER ? env.SMTP_USER.trim() : '';
+const smtpPass = env.SMTP_PASS ? env.SMTP_PASS.trim() : '';
+const resendApiKey = env.RESEND_API_KEY ? env.RESEND_API_KEY.trim() : '';
+
+if (env.NODE_ENV !== 'test' && smtpHost && smtpUser) {
   transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
+    host: smtpHost,
     port: env.SMTP_PORT,
     secure: env.SMTP_PORT === 465,
     auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
+      user: smtpUser,
+      pass: smtpPass,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 
 /**
- * Send an email using configured SMTP or development stub
+ * Send an email using configured SMTP, Resend API, or development stub
  */
 export async function sendEmail({ to, subject, html, text }) {
+  if (!transporter && env.NODE_ENV !== 'test' && resendApiKey) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM,
+          to: [to],
+          subject,
+          html,
+          ...(text ? { text } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Resend API error (${res.status})`);
+      }
+      logger.info({ messageId: data.id, to, subject }, 'Email sent successfully via Resend');
+      return data;
+    } catch (error) {
+      logger.error({ err: error, to, subject }, 'Failed to deliver email via Resend');
+      throw error;
+    }
+  }
+
   if (!transporter) {
     logger.info({ to, subject }, 'EMAIL_DEV_STUB: Email sent via mock console transporter');
     if (env.NODE_ENV === 'development') {

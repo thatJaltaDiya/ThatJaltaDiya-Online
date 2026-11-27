@@ -2,9 +2,9 @@ import { prisma } from '../config/prisma.js';
 
 // Default store settings
 const DEFAULTS = {
-  shippingFee: 9900,               // ₹99.00 in paise
-  freeShippingThreshold: 149900,   // ₹1,499.00 in paise
-  announcementText: "HANDCRAFTED SOY CANDLE BOUQUETS ✨ FREE DELIVERY OVER ₹1499 ✨ CUSTOM GIFT HAMPERS",
+  shippingFee: 0,                  // ₹0.00 in paise (free delivery)
+  freeShippingThreshold: 0,        // ₹0.00 minimum order (no minimum)
+  announcementText: "HANDCRAFTED SOY CANDLE BOUQUETS ✨ FREE DELIVERY ON ALL ORDERS ✨ CUSTOM GIFT HAMPERS",
   supportEmail: "hello@thatjaltadiya.com",
   supportPhone: "+91 98765 43210",
   instagramHandle: "@thatjaltadiya",
