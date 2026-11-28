@@ -16,11 +16,11 @@ export function Cart() {
   const [shippingSettings, setShippingSettings] = useState({ shippingFee: 0, freeShippingThreshold: 0 });
   const [updatingItems, setUpdatingItems] = useState({});
 
-  const handleQuantityChange = async (itemId, nextQuantity, action) => {
+  const runItemAction = async (itemId, action, operation) => {
     if (updatingItems[itemId]) return;
     setUpdatingItems((prev) => ({ ...prev, [itemId]: action }));
     try {
-      await updateQuantity(itemId, nextQuantity);
+      await operation();
     } catch {
       // error toast handled in CartContext
     } finally {
@@ -31,6 +31,12 @@ export function Cart() {
       });
     }
   };
+
+  const handleQuantityChange = (itemId, nextQuantity, action) =>
+    runItemAction(itemId, action, () => updateQuantity(itemId, nextQuantity));
+
+  const handleRemoveItem = (itemId) =>
+    runItemAction(itemId, 'remove', () => removeFromCart(itemId));
 
   useEffect(() => {
     api.get('/settings/public').then((res) => {
@@ -99,6 +105,7 @@ export function Cart() {
               const isUpdating = Boolean(updatingAction);
               const isDecLoading = updatingAction === 'dec';
               const isIncLoading = updatingAction === 'inc';
+              const isRemoveLoading = updatingAction === 'remove';
               const isMaxReached = item.quantity >= item.availableStock;
 
               return (
@@ -164,12 +171,13 @@ export function Cart() {
 
                   <button
                     type="button"
-                    onClick={() => removeFromCart(item.id)}
+                    onClick={() => handleRemoveItem(item.id)}
                     disabled={isUpdating}
+                    aria-busy={isRemoveLoading}
                     className="p-2 text-primary/50 hover:text-red-600 rounded-full hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ml-2"
                     aria-label="Remove item"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {isRemoveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </button>
                 </div>
               </Card>

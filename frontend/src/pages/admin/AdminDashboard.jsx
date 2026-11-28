@@ -8,6 +8,7 @@ import {
   ArrowRight,
   TrendingUp,
   Package,
+  RefreshCw,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
@@ -55,6 +56,7 @@ export function AdminDashboard() {
     pendingOrders = 0,
     lowStockProducts = [],
     recentOrders = [],
+    replacementRequests = [],
     salesChart = [],
   } = data || {};
 
@@ -185,6 +187,61 @@ export function AdminDashboard() {
         </Card>
       </div>
 
+      {/* Replacement Requests */}
+      {replacementRequests.length > 0 && (
+        <Card className="p-4 sm:p-6 bg-white border-2 border-accent space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/10">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-accent flex-shrink-0" />
+              <div>
+                <h2 className="font-editorial text-lg sm:text-xl font-bold text-primary">
+                  Replacement Requests ({replacementRequests.length})
+                </h2>
+                <p className="text-xs text-primary/60">Delivered orders awaiting free replacement dispatch</p>
+              </div>
+            </div>
+            <Link to="/admin/orders" className="self-start sm:self-auto">
+              <Button size="sm" variant="outline">
+                <span>Open Orders</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {replacementRequests.map(reqOrder => (
+              <div
+                key={reqOrder.id}
+                className="p-3.5 rounded-xl bg-surface border border-border/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-extrabold text-primary">#{reqOrder.orderNumber}</span>
+                    <Badge variant="accent">Replacement Requested</Badge>
+                  </div>
+                  <div className="font-bold text-primary">
+                    {reqOrder.user?.name || reqOrder.shippingAddress?.recipientName || 'Customer'} ·{' '}
+                    <span className="font-medium text-primary/70">{reqOrder.user?.email}</span>
+                    {(reqOrder.user?.phone || reqOrder.shippingAddress?.phone) && (
+                      <span className="font-medium text-primary/70"> · {reqOrder.user?.phone || reqOrder.shippingAddress?.phone}</span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-primary/75 break-words">
+                    {reqOrder.items?.map(it => `${it.quantity}x ${it.productName} (ID: ${it.productId || 'N/A'})`).join(', ')}
+                  </div>
+                </div>
+                <Link
+                  to={`/admin/orders?search=${reqOrder.orderNumber}`}
+                  className="text-xs font-bold text-accent hover:underline whitespace-nowrap self-start sm:self-center"
+                >
+                  Manage →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Recent Orders Table */}
       <Card className="p-4 sm:p-6 bg-white space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/10">
@@ -222,9 +279,16 @@ export function AdminDashboard() {
                   </td>
                   <td className="py-3 font-editorial font-bold text-sm">₹{(order.total / 100).toFixed(0)}</td>
                   <td className="py-3">
-                    <Badge variant={order.status === 'DELIVERED' ? 'sage' : order.status === 'CANCELLED' ? 'dark' : 'accent'}>
-                      {order.status}
-                    </Badge>
+                    <div className="flex flex-col gap-1 items-start">
+                      <Badge variant={order.status === 'DELIVERED' ? 'sage' : order.status === 'CANCELLED' ? 'dark' : 'accent'}>
+                        {order.status}
+                      </Badge>
+                      {order.internalNotes?.includes('[REPLACEMENT_REQUESTED]') && (
+                        <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/30 px-1.5 py-0.5 rounded-full">
+                          Replacement Requested
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 text-right">
                     <Link to={`/admin/orders?search=${order.orderNumber}`} className="text-xs font-bold text-accent hover:underline">

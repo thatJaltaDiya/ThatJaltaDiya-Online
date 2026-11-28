@@ -259,5 +259,31 @@ describe('Add to Bag & Bag Quantity Loader Behavior', () => {
       expect(incBtn).not.toBeDisabled();
       expect(screen.queryByText('maximum reached...')).not.toBeInTheDocument();
     });
+
+    // Remove item shows loader on delete button until request resolves
+    let resolveDelete;
+    const deletePromise = new Promise((resolve) => {
+      resolveDelete = resolve;
+    });
+    api.delete.mockImplementationOnce(() => deletePromise);
+
+    const removeBtn = screen.getByRole('button', { name: /remove item/i });
+    fireEvent.click(removeBtn);
+
+    await waitFor(() => {
+      expect(removeBtn).toHaveAttribute('aria-busy', 'true');
+      expect(removeBtn).toBeDisabled();
+      expect(incBtn).toBeDisabled();
+      expect(decBtn).toBeDisabled();
+    });
+
+    resolveDelete({
+      success: true,
+      data: { items: [], subtotal: 0, totalItems: 0 },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/your bag is empty/i)).toBeInTheDocument();
+    });
   });
 });

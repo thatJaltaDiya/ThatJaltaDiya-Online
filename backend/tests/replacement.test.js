@@ -24,7 +24,9 @@ import { hashPassword } from '../src/utils/password.js';
 
 describe('Order Replacement Policy & Email Flow', () => {
   let customerUser;
+  let adminUser;
   let customerToken;
+  let adminToken;
   let testCategory;
   let testProduct;
   let savedAddress;
@@ -48,6 +50,21 @@ describe('Order Replacement Policy & Email Flow', () => {
       sub: customerUser.id,
       email: customerUser.email,
       role: 'CUSTOMER',
+    });
+
+    adminUser = await prisma.user.create({
+      data: {
+        email: `replace_admin_${Date.now()}@test.com`,
+        passwordHash,
+        name: 'Replace Admin',
+        role: 'ADMIN',
+        isEmailVerified: true,
+      },
+    });
+    adminToken = signAccessToken({
+      sub: adminUser.id,
+      email: adminUser.email,
+      role: 'ADMIN',
     });
 
     testCategory = await prisma.category.create({
@@ -93,6 +110,7 @@ describe('Order Replacement Policy & Email Flow', () => {
       if (testProduct) await prisma.product.delete({ where: { id: testProduct.id } });
       if (testCategory) await prisma.category.delete({ where: { id: testCategory.id } });
       if (customerUser) await prisma.user.delete({ where: { id: customerUser.id } });
+      if (adminUser) await prisma.user.delete({ where: { id: adminUser.id } });
     } catch {
       // ignore cleanup errors
     }
@@ -161,5 +179,13 @@ describe('Order Replacement Policy & Email Flow', () => {
     expect(dupRes.status).toBe(400);
     expect(dupRes.body.error.code).toBe('REPLACEMENT_ALREADY_REQUESTED');
     expect(sendOrderReplacementRequestEmailMock).toHaveBeenCalledTimes(1);
+
+    // 5. Replacement request appears in Admin Dashboard metrics
+    const dashRes = await request(app)
+      .get('/api/v1/admin/dashboard')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(dashRes.status).toBe(200);
+    expect(Array.isArray(dashRes.body.data.replacementRequests)).toBe(true);
+    expect(dashRes.body.data.replacementRequests.some((r) => r.id === order.id)).toBe(true);
   });
 });

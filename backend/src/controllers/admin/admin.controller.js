@@ -21,6 +21,7 @@ export async function getDashboard(req, res, next) {
       revenueResult,
       lowStockProducts,
       recentOrders,
+      replacementRequests,
       demoStatus,
     ] = await Promise.all([
       prisma.order.count(),
@@ -43,6 +44,17 @@ export async function getDashboard(req, res, next) {
         orderBy: { createdAt: 'desc' },
         include: {
           user: { select: { name: true, email: true } },
+        },
+      }),
+      prisma.order.findMany({
+        where: {
+          internalNotes: { contains: '[REPLACEMENT_REQUESTED]' },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+        include: {
+          user: { select: { name: true, email: true, phone: true } },
+          items: { select: { id: true, productId: true, productName: true, quantity: true } },
         },
       }),
       demoService.checkDemoDataStatus(),
@@ -85,6 +97,7 @@ export async function getDashboard(req, res, next) {
       totalRevenue: revenueResult._sum.total || 0,
       lowStockProducts,
       recentOrders,
+      replacementRequests,
       salesChart,
       demoStatus,
     });

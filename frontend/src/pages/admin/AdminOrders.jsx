@@ -167,6 +167,14 @@ export function AdminOrders() {
       >
         {selectedOrder && (
           <div className="space-y-6">
+            {selectedOrder.internalNotes?.includes('[REPLACEMENT_REQUESTED]') && (
+              <div className="p-3.5 rounded-xl border-2 border-accent bg-accent/5 text-xs font-bold text-primary">
+                <span className="block text-accent font-extrabold uppercase tracking-wider mb-0.5">
+                  Replacement Requested
+                </span>
+                <span>Customer requested a free replacement (no extra charges) for this delivered order.</span>
+              </div>
+            )}
             {/* Status & Local Fulfillment Form */}
             <form onSubmit={handleUpdateStatus} className="p-4 rounded-xl border-2 border-border bg-surface space-y-3">
               <div className="flex items-center justify-between">
