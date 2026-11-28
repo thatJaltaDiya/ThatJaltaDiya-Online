@@ -4,6 +4,7 @@ import { Navbar } from './components/layout/Navbar.jsx';
 import { Footer } from './components/layout/Footer.jsx';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
 import { AdminRoute } from './routes/AdminRoute.jsx';
+import { GuestRoute } from './routes/GuestRoute.jsx';
 
 // Storefront Pages
 import { Home } from './pages/Home.jsx';
@@ -87,8 +88,8 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
 
         {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

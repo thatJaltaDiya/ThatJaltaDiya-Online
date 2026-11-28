@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
@@ -14,11 +14,16 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/shop';
+  const rawRedirect = searchParams.get('redirect') || '/shop';
+  const redirectUrl = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/shop';
+
+  if (isAuthenticated) {
+    return <Navigate to={isAdmin ? '/admin' : redirectUrl} replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

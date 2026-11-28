@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Flame, Lock, Mail, User, Phone, Check, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button.jsx';
@@ -18,10 +18,15 @@ export function Register() {
   });
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
-  const { register } = useAuth();
+  const { register, isAuthenticated, isAdmin } = useAuth();
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/shop';
+  const rawRedirect = searchParams.get('redirect') || '/shop';
+  const redirectUrl = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/shop';
+
+  if (isAuthenticated && !registered) {
+    return <Navigate to={isAdmin ? '/admin' : redirectUrl} replace />;
+  }
 
   const hasUpper = /[A-Z]/.test(form.password);
   const hasLower = /[a-z]/.test(form.password);

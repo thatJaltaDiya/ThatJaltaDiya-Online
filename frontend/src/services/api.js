@@ -39,6 +39,13 @@ export const api = {
   clearAccessToken: () => {
     inMemoryAccessToken = null;
     inMemoryCsrfToken = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('tjd_has_session');
+      }
+    } catch {
+      // ignore storage errors
+    }
   },
 
   async request(endpoint, options = {}) {

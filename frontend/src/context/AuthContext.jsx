@@ -6,10 +6,33 @@ const AuthContext = createContext(null);
 // Deduplicate mount refresh across React StrictMode double-invocations so
 // single-use refresh token rotation never triggers false reuse detection.
 let pendingInitAuthPromise = null;
+const SESSION_HINT_KEY = 'tjd_has_session';
+
+function readSessionHint() {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(SESSION_HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSessionHint(active) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (active) {
+      localStorage.setItem(SESSION_HINT_KEY, '1');
+    } else {
+      localStorage.removeItem(SESSION_HINT_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasSessionHint, setHasSessionHint] = useState(readSessionHint);
 
   // Silent refresh on mount
   useEffect(() => {
@@ -33,12 +56,19 @@ export function AuthProvider({ children }) {
           if (res.data.csrfToken) {
             api.setCsrfToken(res.data.csrfToken);
           }
+          writeSessionHint(true);
+          setHasSessionHint(true);
           setUser(res.data.user);
+        } else {
+          writeSessionHint(false);
+          setHasSessionHint(false);
         }
       } catch {
         if (!active) return;
         // Not logged in or expired, ignore
         api.clearAccessToken();
+        writeSessionHint(false);
+        setHasSessionHint(false);
         setUser(null);
       } finally {
         if (active) {
@@ -58,6 +88,8 @@ export function AuthProvider({ children }) {
     if (csrfToken) {
       api.setCsrfToken(csrfToken);
     }
+    writeSessionHint(true);
+    setHasSessionHint(true);
     setUser(userData);
   }, []);
 
@@ -79,6 +111,8 @@ export function AuthProvider({ children }) {
       await api.post('/auth/logout');
     } finally {
       api.clearAccessToken();
+      writeSessionHint(false);
+      setHasSessionHint(false);
       setUser(null);
     }
   }, []);
@@ -92,6 +126,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
+        hasSessionHint,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'ADMIN',
         login,

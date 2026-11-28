@@ -7,10 +7,11 @@ import { useWishlist } from '../../context/WishlistContext.jsx';
 import { MarqueeStrip } from '../ui/MarqueeStrip.jsx';
 
 export function Navbar() {
-  const { user, isAuthenticated, logout, isAdmin } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin, loading, hasSessionHint } = useAuth();
   const { cart } = useCart();
   const { wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const showAuthPlaceholder = loading && hasSessionHint && !isAuthenticated;
 
   return (
     <header className="sticky top-0 z-40 bg-canvas border-b-2 border-border">
@@ -152,6 +153,11 @@ export function Navbar() {
                   </div>
                 </div>
               </div>
+            ) : showAuthPlaceholder ? (
+              <div
+                aria-hidden="true"
+                className="hidden sm:inline-flex items-center justify-center w-24 h-[40px] rounded-full border-2 border-border/20 bg-surface animate-pulse"
+              />
             ) : (
               <Link
                 to="/login"
@@ -244,6 +250,10 @@ export function Navbar() {
               >
                 Log Out
               </button>
+            </div>
+          ) : showAuthPlaceholder ? (
+            <div className="pt-2 flex gap-3" aria-hidden="true">
+              <div className="flex-1 h-10 rounded-full border border-border/20 bg-surface animate-pulse" />
             </div>
           ) : (
             <div className="pt-2 flex gap-3">
