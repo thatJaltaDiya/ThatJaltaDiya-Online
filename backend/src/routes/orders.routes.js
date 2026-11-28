@@ -17,6 +17,6 @@ router.post(
 );
 router.get('/', ordersController.listOrders);
 router.get('/:orderId', ordersController.getOrder);
-router.post('/:orderId/cancel', writeLimiter, ordersController.cancelOrder);
+router.post('/:orderId/replace', writeLimiter, ordersController.requestReplacement);
 
 export default router;

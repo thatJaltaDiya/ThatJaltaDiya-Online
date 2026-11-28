@@ -42,10 +42,14 @@ export async function getOrder(req, res, next) {
   }
 }
 
-export async function cancelOrder(req, res, next) {
+export async function requestReplacement(req, res, next) {
   try {
-    const updated = await orderService.cancelOrderByCustomer(req.user.id, req.params.orderId);
-    return apiSuccess(res, orderService.serializeCustomerOrder(updated), 'Order cancelled successfully.');
+    const updated = await orderService.requestOrderReplacement(req.user.id, req.params.orderId);
+    return apiSuccess(
+      res,
+      orderService.serializeCustomerOrder(updated),
+      'Replacement request sent to our team. No extra charges apply.'
+    );
   } catch (error) {
     next(error);
   }

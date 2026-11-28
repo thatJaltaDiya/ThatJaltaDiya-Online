@@ -15,7 +15,6 @@ export function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updating, setUpdating] = useState(false);
-  const [refundRequiredCount, setRefundRequiredCount] = useState(0);
   const { showToast } = useToast();
 
   const statusFilter = searchParams.get('status') || '';
@@ -39,9 +38,6 @@ export function AdminOrders() {
       const res = await api.get(`/admin/orders${qs}`);
       if (res.success) {
         setOrders(res.data);
-        if (res.meta?.refundRequiredCount !== undefined) {
-          setRefundRequiredCount(res.meta.refundRequiredCount);
-        }
       }
     } catch {
       // ignore
@@ -80,24 +76,6 @@ export function AdminOrders() {
     }
   };
 
-  const handleMarkRefunded = async () => {
-    if (!selectedOrder) return;
-    if (!window.confirm(`Mark Order #${selectedOrder.orderNumber} as REFUNDED? Ensure payment has been manually refunded to customer.`)) return;
-    setUpdating(true);
-    try {
-      const res = await api.post(`/admin/orders/${selectedOrder.id}/mark-refunded`, { reason: 'Admin confirmed refund' });
-      if (res.success) {
-        showToast({ type: 'success', message: 'Order successfully marked as REFUNDED.' });
-        setSelectedOrder(res.data);
-        loadOrders();
-      }
-    } catch (err) {
-      showToast({ type: 'error', message: err.message || 'Failed to mark as refunded' });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
   const handlePrintSlip = () => {
     window.print();
   };
@@ -112,27 +90,6 @@ export function AdminOrders() {
           </h1>
         </div>
       </div>
-
-      {/* Refund Required Alert Banner */}
-      {refundRequiredCount > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-amber-900 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">⚠️</span>
-            <span>
-              <strong>Action Required:</strong> {refundRequiredCount} order(s) flagged as{' '}
-              <code className="bg-amber-200 px-1.5 py-0.5 rounded text-[11px] font-mono">REFUND_REQUIRED</code>{' '}
-              (late payment confirmed on an already cancelled/expired order). Please review and issue refund.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSearchParams({ status: '', paymentStatus: 'REFUND_REQUIRED', search: '' })}
-            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap self-start sm:self-auto"
-          >
-            Filter Refund Orders
-          </button>
-        </div>
-      )}
 
       {/* Filter strip */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -181,9 +138,9 @@ export function AdminOrders() {
                       <Badge variant={order.status === 'DELIVERED' ? 'sage' : order.status === 'CANCELLED' ? 'dark' : order.status === 'SHIPPED' ? 'butter' : 'accent'}>
                         {order.status}
                       </Badge>
-                      {order.paymentStatus === 'REFUND_REQUIRED' && (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">
-                          ⚠️ Needs Refund
+                      {order.internalNotes?.includes('[REPLACEMENT_REQUESTED]') && (
+                        <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/30 px-1.5 py-0.5 rounded-full">
+                          Replacement Requested
                         </span>
                       )}
                     </div>
@@ -210,26 +167,6 @@ export function AdminOrders() {
       >
         {selectedOrder && (
           <div className="space-y-6">
-            {/* Refund Action Callout if paymentStatus is REFUND_REQUIRED */}
-            {selectedOrder.paymentStatus === 'REFUND_REQUIRED' && (
-              <div className="p-4 rounded-xl border-2 border-red-300 bg-red-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold text-red-900">
-                <div>
-                  <span className="text-sm font-extrabold block text-red-700">⚠️ REFUND ACTION REQUIRED</span>
-                  <span>This order received payment after being cancelled or expired. Process the customer refund and record it below.</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="dark"
-                  size="sm"
-                  isLoading={updating}
-                  onClick={handleMarkRefunded}
-                  className="whitespace-nowrap"
-                >
-                  Mark as Refunded
-                </Button>
-              </div>
-            )}
-
             {/* Status & Local Fulfillment Form */}
             <form onSubmit={handleUpdateStatus} className="p-4 rounded-xl border-2 border-border bg-surface space-y-3">
               <div className="flex items-center justify-between">
@@ -254,8 +191,6 @@ export function AdminOrders() {
                   <option value="CONFIRMED">CONFIRMED (Order Accepted)</option>
                   <option value="PROCESSING">PROCESSING (Crafting Bouquet / Packing)</option>
                   <option value="DELIVERED">DELIVERED (Delivered to Customer)</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                  <option value="REFUNDED">REFUNDED</option>
                 </select>
               </div>
 

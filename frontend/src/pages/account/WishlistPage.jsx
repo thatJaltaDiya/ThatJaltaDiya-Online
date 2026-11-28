@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Trash2 } from 'lucide-react';
+import { Heart, ShoppingBag, Trash2, Loader2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { useWishlist } from '../../context/WishlistContext.jsx';
@@ -8,7 +8,7 @@ import { useCart } from '../../context/CartContext.jsx';
 
 export function WishlistPage() {
   const { wishlistItems, toggleWishlist } = useWishlist();
-  const { addToCart } = useCart();
+  const { addToCart, isAddingToCart } = useCart();
 
   if (wishlistItems.length === 0) {
     return (
@@ -67,15 +67,25 @@ export function WishlistPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => addToCart(product.id, null, 1)}
-                disabled={product.stock <= 0}
-                className="inline-flex items-center justify-center gap-1.5 w-full mt-3 py-2 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Move To Bag</span>
-              </button>
+              {(() => {
+                const isAdding = isAddingToCart(product.id, null);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product.id, null, 1)}
+                    disabled={product.stock <= 0 || isAdding}
+                    aria-busy={isAdding}
+                    className="inline-flex items-center justify-center gap-1.5 w-full mt-3 py-2 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  >
+                    {isAdding ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isAdding ? 'Adding...' : 'Move To Bag'}</span>
+                  </button>
+                );
+              })()}
             </div>
           );
         })}

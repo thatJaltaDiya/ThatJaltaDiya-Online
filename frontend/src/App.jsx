@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar.jsx';
 import { Footer } from './components/layout/Footer.jsx';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
@@ -81,7 +81,8 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/shipping-policy" element={<ShippingPolicy />} />
-        <Route path="/return-policy" element={<ReturnPolicy />} />
+        <Route path="/replacement-policy" element={<ReturnPolicy />} />
+        <Route path="/return-policy" element={<Navigate to="/replacement-policy" replace />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
 

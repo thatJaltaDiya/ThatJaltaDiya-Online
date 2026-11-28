@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
-import { Heart, ShoppingBag, ShieldCheck, Truck, Sparkles, ChevronRight, Check } from 'lucide-react';
+import { Heart, ShoppingBag, ShieldCheck, Truck, Sparkles, ChevronRight, Check, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Card } from '../components/ui/Card.jsx';
@@ -22,7 +22,7 @@ export function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
 
   const { isAdmin } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, isAddingToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
   useEffect(() => {
@@ -86,6 +86,7 @@ export function ProductDetail() {
   const images = productData.images || [];
   const activeImage = images[activeImageIndex]?.url || "/uploads/placeholder.webp";
   const itemWishlisted = isWishlisted(productData.id);
+  const isAddingPrimary = isAddingToCart(productData.id, selectedVariant?.id || null);
 
   // Sanitize rich text description with DOMPurify
   const cleanDescription = DOMPurify.sanitize(productData.description || '');
@@ -260,12 +261,17 @@ export function ProductDetail() {
                   <Button
                     variant="accent"
                     size="lg"
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || isAddingPrimary}
+                    aria-busy={isAddingPrimary}
                     onClick={() => addToCart(productData.id, selectedVariant?.id || null, quantity)}
                     className="flex-1 text-sm font-extrabold uppercase tracking-wider"
                   >
-                    <ShoppingBag className="w-5 h-5 mr-2" />
-                    <span>{isOutOfStock ? 'Sold Out' : 'Add To Bag'}</span>
+                    {isAddingPrimary ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <ShoppingBag className="w-5 h-5 mr-2" />
+                    )}
+                    <span>{isOutOfStock ? 'Sold Out' : isAddingPrimary ? 'Adding...' : 'Add To Bag'}</span>
                   </Button>
 
                   <button
@@ -321,17 +327,26 @@ export function ProductDetail() {
                     </Link>
                     <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/10">
                       <span className="font-editorial font-bold text-primary">₹{(rel.price / 100).toFixed(0)}</span>
-                      {!isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => addToCart(rel.id, null, 1)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent transition-colors shadow-sm"
-                          aria-label={`Add ${rel.name} to bag`}
-                        >
-                          <ShoppingBag className="w-3 h-3" />
-                          <span>Add</span>
-                        </button>
-                      )}
+                      {!isAdmin && (() => {
+                        const isAddingRel = isAddingToCart(rel.id, null);
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(rel.id, null, 1)}
+                            disabled={rel.stock <= 0 || isAddingRel}
+                            aria-busy={isAddingRel}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            aria-label={`Add ${rel.name} to bag`}
+                          >
+                            {isAddingRel ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <ShoppingBag className="w-3 h-3" />
+                            )}
+                            <span>Add</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

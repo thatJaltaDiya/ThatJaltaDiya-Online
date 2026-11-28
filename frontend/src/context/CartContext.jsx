@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuth } from './AuthContext.jsx';
@@ -22,6 +22,14 @@ export function CartProvider({ children }) {
   const location = useLocation();
   const [cart, setCart] = useState({ items: [], subtotal: 0, totalItems: 0 });
   const [loading, setLoading] = useState(true);
+  const [pendingAddKeys, setPendingAddKeys] = useState({});
+  const pendingAddRef = useRef({});
+
+  const getAddKey = (productId, variantId = null) => `${productId}:${variantId || ''}`;
+  const isAddingToCart = useCallback(
+    (productId, variantId = null) => Boolean(pendingAddKeys[getAddKey(productId, variantId)]),
+    [pendingAddKeys]
+  );
 
   // Fetch Cart
   const fetchCart = useCallback(async () => {
@@ -74,6 +82,14 @@ export function CartProvider({ children }) {
       return { success: false };
     }
 
+    const key = getAddKey(productId, variantId);
+    if (pendingAddRef.current[key]) {
+      return { success: false };
+    }
+
+    pendingAddRef.current[key] = true;
+    setPendingAddKeys((prev) => ({ ...prev, [key]: true }));
+
     try {
       const res = await api.post('/cart/items', {
         productId,
@@ -88,8 +104,15 @@ export function CartProvider({ children }) {
     } catch (err) {
       showToast({ type: 'error', message: err.message || 'Could not add item to bag.' });
       throw err;
+    } finally {
+      delete pendingAddRef.current[key];
+      setPendingAddKeys((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
-  }, [isAuthenticated, showToast, navigate, location.pathname, location.search]);
+  }, [isAuthenticated, isAdmin, showToast, navigate, location.pathname, location.search]);
 
   const updateQuantity = useCallback(async (cartItemId, quantity) => {
     try {
@@ -133,6 +156,7 @@ export function CartProvider({ children }) {
       value={{
         cart,
         loading,
+        isAddingToCart,
         addToCart,
         updateQuantity,
         removeFromCart,

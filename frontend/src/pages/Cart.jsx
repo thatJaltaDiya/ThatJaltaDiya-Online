@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Trash2, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Card } from '../components/ui/Card.jsx';
@@ -14,6 +14,23 @@ export function Cart() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [shippingSettings, setShippingSettings] = useState({ shippingFee: 0, freeShippingThreshold: 0 });
+  const [updatingItems, setUpdatingItems] = useState({});
+
+  const handleQuantityChange = async (itemId, nextQuantity, action) => {
+    if (updatingItems[itemId]) return;
+    setUpdatingItems((prev) => ({ ...prev, [itemId]: action }));
+    try {
+      await updateQuantity(itemId, nextQuantity);
+    } catch {
+      // error toast handled in CartContext
+    } finally {
+      setUpdatingItems((prev) => {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     api.get('/settings/public').then((res) => {
@@ -77,7 +94,14 @@ export function Cart() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Cart Items List */}
           <div className="lg:col-span-8 space-y-4">
-            {cart.items.map(item => (
+            {cart.items.map(item => {
+              const updatingAction = updatingItems[item.id];
+              const isUpdating = Boolean(updatingAction);
+              const isDecLoading = updatingAction === 'dec';
+              const isIncLoading = updatingAction === 'inc';
+              const isMaxReached = item.quantity >= item.availableStock;
+
+              return (
               <Card key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <Link to={`/product/${item.productSlug}`} className="w-24 h-24 rounded-xl border-2 border-border overflow-hidden bg-surface flex-shrink-0">
                   <img src={item.image || "/uploads/placeholder.webp"} alt={item.productName} className="w-full h-full object-cover" />
@@ -101,25 +125,37 @@ export function Cart() {
 
                 {/* Quantity Controls */}
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-border/10">
-                  <div className="flex items-center border-2 border-border rounded-full bg-white shadow-pop-sm">
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-surface rounded-l-full min-h-[36px]"
-                      aria-label="Decrease quantity"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center text-xs font-bold select-none">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      disabled={item.quantity >= item.availableStock}
-                      className="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-surface rounded-r-full disabled:opacity-40 min-h-[36px]"
-                      aria-label="Increase quantity"
-                    >
-                      +
-                    </button>
+                  <div className="flex flex-col items-start">
+                    <div className="flex items-center border-2 border-border rounded-full bg-white shadow-pop-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleQuantityChange(item.id, item.quantity - 1, 'dec')}
+                        disabled={isUpdating}
+                        aria-busy={isDecLoading}
+                        className="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-surface rounded-l-full disabled:opacity-40 disabled:cursor-not-allowed min-h-[36px]"
+                        aria-label="Decrease quantity"
+                      >
+                        {isDecLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '-'}
+                      </button>
+                      <span className="w-8 text-center text-xs font-bold select-none">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuantityChange(item.id, item.quantity + 1, 'inc')}
+                        disabled={isUpdating || isMaxReached}
+                        aria-busy={isIncLoading}
+                        className="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-surface rounded-r-full disabled:opacity-40 disabled:cursor-not-allowed min-h-[36px]"
+                        aria-label="Increase quantity"
+                      >
+                        {isIncLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '+'}
+                      </button>
+                    </div>
+                    {isMaxReached && (
+                      <span className="text-[11px] font-semibold text-accent mt-1" role="status">
+                        maximum reached...
+                      </span>
+                    )}
                   </div>
 
                   <span className="font-editorial text-base font-extrabold text-primary w-20 text-right">
@@ -127,15 +163,18 @@ export function Cart() {
                   </span>
 
                   <button
+                    type="button"
                     onClick={() => removeFromCart(item.id)}
-                    className="p-2 text-primary/50 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors ml-2"
+                    disabled={isUpdating}
+                    className="p-2 text-primary/50 hover:text-red-600 rounded-full hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ml-2"
                     aria-label="Remove item"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           {/* Order Summary Sidebar */}

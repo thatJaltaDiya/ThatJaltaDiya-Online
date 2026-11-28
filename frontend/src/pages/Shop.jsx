@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Filter, SlidersHorizontal, Search, Heart, ShoppingBag, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Filter, SlidersHorizontal, Search, Heart, ShoppingBag, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Card } from '../components/ui/Card.jsx';
@@ -20,7 +20,7 @@ export function Shop() {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const { isAdmin } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, isAddingToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
   // Search and Filter states synced with URL
@@ -341,18 +341,26 @@ export function Shop() {
                             )}
                           </div>
 
-                          {!isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => addToCart(product.id, null, 1)}
-                              disabled={product.stock <= 0}
-                              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex-shrink-0"
-                              aria-label={`Add ${product.name} to bag`}
-                            >
-                              <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>Add</span>
-                            </button>
-                          )}
+                          {!isAdmin && (() => {
+                            const isAdding = isAddingToCart(product.id, null);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => addToCart(product.id, null, 1)}
+                                disabled={product.stock <= 0 || isAdding}
+                                aria-busy={isAdding}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-primary text-white hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex-shrink-0"
+                                aria-label={`Add ${product.name} to bag`}
+                              >
+                                {isAdding ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <ShoppingBag className="w-3.5 h-3.5" />
+                                )}
+                                <span>Add</span>
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

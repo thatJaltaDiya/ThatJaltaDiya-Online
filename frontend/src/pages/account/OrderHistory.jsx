@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Truck, AlertCircle, Eye, X } from 'lucide-react';
+import { Package, Truck, Eye, RefreshCw } from 'lucide-react';
 import { Card } from '../../components/ui/Card.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
 import { Button } from '../../components/ui/Button.jsx';
@@ -13,7 +13,7 @@ export function OrderHistory() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [cancellingId, setCancellingId] = useState(null);
+  const [replacingId, setReplacingId] = useState(null);
   const { showToast } = useToast();
 
   const loadOrders = async () => {
@@ -33,22 +33,22 @@ export function OrderHistory() {
     loadOrders();
   }, []);
 
-  const handleCancelOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to cancel this order? Stock will be restored.')) return;
-    setCancellingId(orderId);
+  const handleReplaceOrder = async (orderId) => {
+    if (!window.confirm('Request a free replacement for this delivered order? No extra charges apply.')) return;
+    setReplacingId(orderId);
     try {
-      const res = await api.post(`/orders/${orderId}/cancel`);
+      const res = await api.post(`/orders/${orderId}/replace`);
       if (res.success) {
-        showToast({ type: 'success', message: 'Order cancelled successfully.' });
+        showToast({ type: 'success', message: res.message || 'Replacement request sent to our team.' });
         loadOrders();
         if (selectedOrder?.id === orderId) {
-          setSelectedOrder(null);
+          setSelectedOrder(res.data);
         }
       }
     } catch (err) {
-      showToast({ type: 'error', message: err.message || 'Cannot cancel order.' });
+      showToast({ type: 'error', message: err.message || 'Could not submit replacement request.' });
     } finally {
-      setCancellingId(null);
+      setReplacingId(null);
     }
   };
 
@@ -80,8 +80,8 @@ export function OrderHistory() {
   return (
     <div className="space-y-4">
       {orders.map(order => {
-        const isWithin24Hours = (Date.now() - new Date(order.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
-        const canCancel = (order.status === 'PENDING' || order.status === 'CONFIRMED') && isWithin24Hours;
+        const isDelivered = order.status === 'DELIVERED';
+        const canReplace = isDelivered && !order.replacementRequested;
 
         return (
           <Card key={order.id} className="p-5 bg-white space-y-4">
@@ -132,29 +132,34 @@ export function OrderHistory() {
               ))}
             </div>
 
-            <div className="pt-3 border-t border-border/10 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-primary/60 block">Total</span>
-                <span className="font-editorial text-lg font-black text-primary">₹{(order.total / 100).toFixed(0)}</span>
-              </div>
+            <div className="pt-3 border-t border-border/10 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-primary/60 block">Total</span>
+                  <span className="font-editorial text-lg font-black text-primary">₹{(order.total / 100).toFixed(0)}</span>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setSelectedOrder(order)}>
-                  <Eye className="w-3.5 h-3.5 mr-1" />
-                  <span>View Details</span>
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setSelectedOrder(order)}>
+                    <Eye className="w-3.5 h-3.5 mr-1" />
+                    <span>View Details</span>
+                  </Button>
 
-                {canCancel && (
                   <Button
                     size="sm"
-                    variant="danger"
-                    isLoading={cancellingId === order.id}
-                    onClick={() => handleCancelOrder(order.id)}
+                    variant={order.replacementRequested ? 'sage' : 'secondary'}
+                    isLoading={replacingId === order.id}
+                    disabled={!canReplace}
+                    onClick={() => handleReplaceOrder(order.id)}
                   >
-                    Cancel Order
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    <span>{order.replacementRequested ? 'Replacement Requested' : 'Replace'}</span>
                   </Button>
-                )}
+                </div>
               </div>
+              <p className="text-[11px] font-medium text-primary/65 text-left sm:text-right">
+                Replacement only (no returns or refunds, no extra charges). Replacement will only be possible after the product is delivered.
+              </p>
             </div>
           </Card>
         );

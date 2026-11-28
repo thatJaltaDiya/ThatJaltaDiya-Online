@@ -163,3 +163,84 @@ export async function sendOrderStatusUpdateEmail(to, order) {
   `;
   return sendEmail({ to, subject: `Update on Order #${safeOrderNumber}: ${safeStatus}`, html });
 }
+
+/**
+ * Send replacement request notification from self (system/admin EMAIL_FROM) to admin.
+ */
+export async function sendOrderReplacementRequestEmail({ order, user }) {
+  const adminRecipient = (env.ADMIN_EMAIL || smtpUser || '').trim();
+  if (!adminRecipient) {
+    throw new Error('Admin email recipient is not configured.');
+  }
+
+  const safeOrderNumber = escapeHtml(order.orderNumber || order.id);
+  const userName = user?.name || order.shippingAddress?.recipientName || 'Customer';
+  const userEmail = user?.email || 'Not provided';
+  const mobileNumber = user?.phone || order.shippingAddress?.phone || 'Not provided';
+
+  const addr = order.shippingAddress || {};
+  const addressParts = [
+    addr.recipientName,
+    addr.street,
+    addr.apartment,
+    [addr.city, addr.state].filter(Boolean).join(', '),
+    addr.postalCode,
+    addr.country,
+  ].filter(Boolean);
+  const formattedAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Not provided';
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemRowsHtml = items
+    .map((item) => {
+      const pid = escapeHtml(item.productId || 'N/A');
+      const pname = escapeHtml(item.productName || 'Product');
+      const qty = Number(item.quantity || 1);
+      return `<li><strong>Product ID:</strong> <code>${pid}</code><br /><strong>Product Name:</strong> ${pname} (Qty: ${qty})</li>`;
+    })
+    .join('');
+
+  const itemLinesText = items
+    .map((item) => `- Product ID: ${item.productId || 'N/A'} | Name: ${item.productName || 'Product'} (Qty: ${item.quantity || 1})`)
+    .join('\n');
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; border: 1px solid #2D0C1E; border-radius: 12px; background-color: #FFFBF5; color: #2D0C1E;">
+      <h2 style="font-family: serif; color: #FF3366; margin-top: 0;">Replacement Request Received (#${safeOrderNumber})</h2>
+      <p>A customer has requested a <strong>free replacement</strong> (no extra charges) for a delivered order.</p>
+
+      <h3 style="margin-bottom: 6px; color: #2D0C1E;">Product Details</h3>
+      <ul style="padding-left: 18px; line-height: 1.6;">
+        ${itemRowsHtml || '<li>No items found on order</li>'}
+      </ul>
+
+      <h3 style="margin-bottom: 6px; color: #2D0C1E;">Customer Details</h3>
+      <p style="line-height: 1.7; margin-top: 4px;">
+        <strong>User Name:</strong> ${escapeHtml(userName)}<br />
+        <strong>Mobile Number:</strong> ${escapeHtml(mobileNumber)}<br />
+        <strong>Email:</strong> ${escapeHtml(userEmail)}<br />
+        <strong>Delivery Address:</strong> ${escapeHtml(formattedAddress)}
+      </p>
+    </div>
+  `;
+
+  const text = [
+    `Replacement Request Received (#${order.orderNumber || order.id})`,
+    'Replacement only (no extra charges).',
+    '',
+    'Product Details:',
+    itemLinesText || '- No items found on order',
+    '',
+    'Customer Details:',
+    `User Name: ${userName}`,
+    `Mobile Number: ${mobileNumber}`,
+    `Email: ${userEmail}`,
+    `Delivery Address: ${formattedAddress}`,
+  ].join('\n');
+
+  return sendEmail({
+    to: adminRecipient,
+    subject: `Replacement Request - Order #${safeOrderNumber}`,
+    html,
+    text,
+  });
+}

@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { validateCoupon } from './coupon.service.js';
 import { getSiteSettings } from './siteSetting.service.js';
-import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from './email.service.js';
+import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail, sendOrderReplacementRequestEmail } from './email.service.js';
 import { orderMutex } from '../utils/mutex.js';
 import { logger } from '../config/logger.js';
 
@@ -11,9 +11,8 @@ export const ALLOWED_ORDER_TRANSITIONS = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['PROCESSING', 'DELIVERED', 'CANCELLED'],
   PROCESSING: ['DELIVERED', 'SHIPPED', 'CANCELLED'],
-  SHIPPED: ['DELIVERED', 'RETURNED'],
-  DELIVERED: ['REFUNDED', 'RETURNED'],
-  RETURNED: ['REFUNDED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: [],
   CANCELLED: [],
   REFUNDED: [],
 };
@@ -28,6 +27,9 @@ export function serializeCustomerOrder(order) {
     return order.map(serializeCustomerOrder);
   }
 
+  const replacementRequested =
+    typeof order.internalNotes === 'string' && order.internalNotes.includes('[REPLACEMENT_REQUESTED]');
+
   const {
     internalNotes: _internalNotes,
     ipAddress: _ipAddress,
@@ -36,7 +38,10 @@ export function serializeCustomerOrder(order) {
     ...customerFacing
   } = order;
 
-  return customerFacing;
+  return {
+    ...customerFacing,
+    replacementRequested,
+  };
 }
 
 /**
@@ -446,78 +451,86 @@ export async function createOrder({
 }
 
 /**
- * Cancel order by customer (only allowed when status is PENDING or CONFIRMED)
+ * Request replacement for a delivered order (no extra charges).
+ * Sends notification email from self (system/admin EMAIL_FROM) to admin.
  */
-export async function cancelOrderByCustomer(userId, orderId) {
-  const cancelCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+export async function requestOrderReplacement(userId, orderId) {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      items: true,
+      user: { select: { id: true, name: true, email: true, phone: true } },
+    },
+  });
 
-  // Restore inventory in transaction with double-cancel safety via atomic updateMany
+  if (!order) {
+    const error = new Error('Order not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (order.status !== 'DELIVERED') {
+    const error = new Error('Replacement is only possible after the product is delivered.');
+    error.statusCode = 400;
+    error.errorCode = 'REPLACEMENT_NOT_DELIVERED';
+    throw error;
+  }
+
+  if (typeof order.internalNotes === 'string' && order.internalNotes.includes('[REPLACEMENT_REQUESTED]')) {
+    const error = new Error('Replacement has already been requested for this order.');
+    error.statusCode = 400;
+    error.errorCode = 'REPLACEMENT_ALREADY_REQUESTED';
+    throw error;
+  }
+
+  await sendOrderReplacementRequestEmail({ order, user: order.user });
+
   return prisma.$transaction(async (tx) => {
-    // Atomic update first: only updates if status is PENDING/CONFIRMED and placed within 24 hours
-    const updateResult = await tx.order.updateMany({
-      where: {
-        id: orderId,
-        userId,
-        status: { in: ['PENDING', 'CONFIRMED'] },
-        createdAt: { gte: cancelCutoff },
-      },
-      data: {
-        status: 'CANCELLED',
-      },
-    });
-
-    if (updateResult.count === 0) {
-      const existing = await tx.order.findFirst({
-        where: { id: orderId, userId },
-      });
-      if (!existing) {
-        const error = new Error('Order not found.');
-        error.statusCode = 404;
-        throw error;
-      }
-      if (['PENDING', 'CONFIRMED'].includes(existing.status) && existing.createdAt < cancelCutoff) {
-        const error = new Error('Orders can only be cancelled within 24 hours of placement.');
-        error.statusCode = 400;
-        error.errorCode = 'CANCEL_WINDOW_EXPIRED';
-        throw error;
-      }
-      const error = new Error(`Order cannot be cancelled in "${existing.status}" status.`);
-      error.statusCode = 400;
-      error.errorCode = 'CANNOT_CANCEL_ORDER';
-      throw error;
-    }
-
-    // Proceed to restock only when count === 1
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
+    const latest = await tx.order.findFirst({
+      where: { id: orderId, userId },
       include: { items: true },
     });
 
-    for (const item of order.items) {
-      if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        });
-      } else if (item.productId) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
-
-      await tx.stockLog.create({
-        data: {
-          productId: item.productId,
-          variantId: item.variantId,
-          change: item.quantity,
-          reason: 'ORDER_CANCELLED',
-          note: `Restocked after order cancellation #${order.orderNumber}`,
-        },
-      });
+    if (!latest || latest.status !== 'DELIVERED') {
+      const error = new Error('Replacement is only possible after the product is delivered.');
+      error.statusCode = 400;
+      error.errorCode = 'REPLACEMENT_NOT_DELIVERED';
+      throw error;
     }
 
-    return order;
+    if (typeof latest.internalNotes === 'string' && latest.internalNotes.includes('[REPLACEMENT_REQUESTED]')) {
+      return latest;
+    }
+
+    const updatedNotes = [
+      latest.internalNotes,
+      `[REPLACEMENT_REQUESTED] Customer requested free replacement on ${new Date().toISOString()}.`,
+    ].filter(Boolean).join('\n');
+
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId },
+      data: { internalNotes: updatedNotes },
+      include: { items: true },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        action: 'ORDER_REPLACEMENT_REQUESTED',
+        targetType: 'Order',
+        targetId: orderId,
+        details: {
+          orderNumber: latest.orderNumber,
+          userId,
+          items: latest.items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+          })),
+        },
+      },
+    });
+
+    return updatedOrder;
   }, {
     maxWait: 5000,
     timeout: 10000,

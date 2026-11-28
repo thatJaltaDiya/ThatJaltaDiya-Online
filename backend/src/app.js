@@ -227,7 +227,7 @@ app.get("/sitemap.xml", sitemapLimiter, async (_req, res, next) => {
       "/contact",
       "/faq",
       "/shipping-policy",
-      "/return-policy",
+      "/replacement-policy",
       "/privacy-policy",
       "/terms",
     ];

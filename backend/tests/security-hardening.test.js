@@ -531,7 +531,7 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       });
     });
 
-    it('Restores stock with StockLog on cancellation, and prevents double-cancel restocking', async () => {
+    it('Rejects customer cancellation endpoint (no cancel option) and preserves stock deduction', async () => {
       // 1. Setup cart for customer
       let cart = await prisma.cart.findUnique({ where: { userId: orderCustomer.id } });
       if (!cart) {
@@ -563,35 +563,16 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       let prod = await prisma.product.findUnique({ where: { id: testProduct.id } });
       expect(prod.stock).toBe(7);
 
-      // 2. Cancel order -> stock must be restored to 10
-      const cancelRes1 = await request(app)
+      // 2. Customer cancel endpoint must not exist anymore (404)
+      const cancelRes = await request(app)
         .post(`/api/v1/orders/${orderId}/cancel`)
         .set('Authorization', `Bearer ${customerAccessToken}`);
 
-      expect(cancelRes1.status).toBe(200);
-      expect(cancelRes1.body.data.status).toBe('CANCELLED');
+      expect(cancelRes.status).toBe(404);
 
+      // Stock remains deducted at 7
       prod = await prisma.product.findUnique({ where: { id: testProduct.id } });
-      expect(prod.stock).toBe(10);
-
-      // Verify StockLog was written
-      const stockLogs = await prisma.stockLog.findMany({ where: { productId: testProduct.id } });
-      expect(stockLogs.length).toBeGreaterThan(0);
-      const restoreLog = stockLogs.find(l => l.reason === 'ORDER_CANCELLED');
-      expect(restoreLog).toBeDefined();
-      expect(restoreLog.change).toBe(3);
-
-      // 3. Double-cancel attempt -> Must be rejected, stock must NOT increment again
-      const cancelRes2 = await request(app)
-        .post(`/api/v1/orders/${orderId}/cancel`)
-        .set('Authorization', `Bearer ${customerAccessToken}`);
-
-      expect(cancelRes2.status).toBe(400);
-      expect(cancelRes2.body.error.code).toBe('CANNOT_CANCEL_ORDER');
-
-      // Verify stock is STILL 10, not 13
-      prod = await prisma.product.findUnique({ where: { id: testProduct.id } });
-      expect(prod.stock).toBe(10);
+      expect(prod.stock).toBe(7);
     });
 
     it('Replays cached response on duplicate Idempotency-Key submission', async () => {
@@ -827,8 +808,8 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       expect(resUserB.body.data).toBeUndefined();
     });
 
-    // 4. Concurrency double cancel & late payment flag
-    it('Concurrent double cancellation restores stock exactly once', async () => {
+    // 4. Admin expiry cancellation concurrency & late payment flag
+    it('Admin/expiry cancellation restores stock cleanly on updateOrderStatus', async () => {
       // Create an order with 2 items
       let cart = await prisma.cart.findUnique({ where: { userId: hardenCustomer.id } });
       if (!cart) cart = await prisma.cart.create({ data: { userId: hardenCustomer.id } });
@@ -853,26 +834,16 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       const stockAfterOrder = (await prisma.product.findUnique({ where: { id: hardenProduct.id } })).stock;
       expect(stockAfterOrder).toBe(initialStock - 2);
 
-      // Concurrent double cancel
-      const [res1, res2] = await Promise.all([
-        request(app)
-          .post(`/api/v1/orders/${orderId}/cancel`)
-          .set('x-test-client-ip', '198.51.100.31')
-          .set('Authorization', `Bearer ${hardenToken}`),
-        request(app)
-          .post(`/api/v1/orders/${orderId}/cancel`)
-          .set('x-test-client-ip', '198.51.100.31')
-          .set('Authorization', `Bearer ${hardenToken}`),
-      ]);
+      // Customer cancel route is removed (404)
+      const cancelRes = await request(app)
+        .post(`/api/v1/orders/${orderId}/cancel`)
+        .set('x-test-client-ip', '198.51.100.31')
+        .set('Authorization', `Bearer ${hardenToken}`);
+      expect(cancelRes.status).toBe(404);
 
-      const successCount = [res1, res2].filter(r => r.status === 200).length;
-      const failureCount = [res1, res2].filter(r => r.status === 400).length;
-
-      expect(successCount).toBe(1);
-      expect(failureCount).toBe(1);
-
-      const stockAfterCancels = (await prisma.product.findUnique({ where: { id: hardenProduct.id } })).stock;
-      expect(stockAfterCancels).toBe(initialStock); // Restored exactly once, NOT double restored!
+      await updateOrderStatus(orderId, { status: 'CANCELLED' }, hardenCustomer.id);
+      const stockAfterCancel = (await prisma.product.findUnique({ where: { id: hardenProduct.id } })).stock;
+      expect(stockAfterCancel).toBe(initialStock);
     });
 
     it('Late payment for an already-cancelled order is flagged for admin refund', async () => {
@@ -893,11 +864,8 @@ describe('Comprehensive Security Hardening Tests (Step 3)', () => {
       const orderId = orderRes.body.data.id;
       cleanupOrderIds.push(orderId);
 
-      // Cancel the order first
-      await request(app)
-        .post(`/api/v1/orders/${orderId}/cancel`)
-        .set('x-test-client-ip', '198.51.100.32')
-        .set('Authorization', `Bearer ${hardenToken}`);
+      // Mark order CANCELLED (e.g., expired unpaid cleanup)
+      await updateOrderStatus(orderId, { status: 'CANCELLED' }, hardenCustomer.id);
 
       // Now late payment arrives
       const updated = await markOrderPaid(orderId, { paymentId: 'LATE_TXN_999', gateway: 'RAZORPAY_MOCK' });

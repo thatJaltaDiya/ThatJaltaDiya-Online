@@ -7,36 +7,28 @@ export function ReturnPolicy() {
   return (
     <>
       <Helmet>
-        <title>Returns & Refunds | That Jalta Diya</title>
+        <title>Replacement Policy | That Jalta Diya</title>
       </Helmet>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6">
         <Badge variant="accent">STORE POLICIES</Badge>
-        <h1 className="font-editorial text-4xl font-extrabold text-primary">Returns & Refund Policy</h1>
-        <div className="p-3 bg-butter/30 border border-butter rounded-xl text-xs font-semibold text-primary">
-          ℹ️ Note to Store Owner: This policy covers artisanal handcrafted products. Editable via Admin settings.
-        </div>
+        <h1 className="font-editorial text-4xl font-extrabold text-primary">Replacement Policy</h1>
 
         <Card className="p-8 bg-white space-y-4 text-xs sm:text-sm text-primary/85 leading-relaxed font-medium">
-          <h3 className="font-editorial text-lg font-bold text-primary">1. Artisanal Nature of Products</h3>
+          <h3 className="font-editorial text-lg font-bold text-primary">1. No Cancellation, Return, or Refund</h3>
           <p>
-            Because each candle bouquet and wax sculpture is custom hand-poured in small batches, subtle variations in pastel color tint, floral petal curves, and finish are natural characteristics of handcrafted art.
+            Because every candle bouquet and gift hamper is handcrafted to order, we do not offer order cancellations, returns, or refunds once an order is placed.
           </p>
 
-          <h3 className="font-editorial text-lg font-bold text-primary">2. Transit Damage Guarantee</h3>
+          <h3 className="font-editorial text-lg font-bold text-primary">2. Free Replacement Only (After Delivery)</h3>
           <p>
-            We take exceptional pride in our shockproof packaging. In the rare event that an item arrives damaged or broken during transit:
+            If your product arrives damaged or defective, we offer a <strong>replacement only</strong> with <strong>no extra charges</strong>.
             <br />
-            1. Email us at <a href="mailto:hello@thatjaltadiya.com" className="font-bold underline">hello@thatjaltadiya.com</a> within <strong>48 hours</strong> of delivery.
+            1. Replacement is only possible <strong>after the order is marked Delivered</strong>.
             <br />
-            2. Attach a clear unboxing photo or short video showing the damaged piece and parcel label.
+            2. Visit your <strong>Order History</strong> and click the <strong>Replace</strong> button on the delivered order to notify our team immediately.
             <br />
-            3. We will immediately dispatch a fresh replacement free of charge or issue a full refund.
-          </p>
-
-          <h3 className="font-editorial text-lg font-bold text-primary">3. Non-Returnable Items</h3>
-          <p>
-            For hygiene and safety reasons, burnt candles and sale items are non-returnable once opened and undamaged.
+            3. We will inspect your request and dispatch a fresh replacement free of charge.
           </p>
         </Card>
       </div>
